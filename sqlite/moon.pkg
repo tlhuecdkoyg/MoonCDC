@@ -1,0 +1,6 @@
+import {
+  "tlhuecdkoyg/MoonCDC" @cdc,
+  "moonbit-community/sqlite3",
+}
+
+supported_targets = "+native"
