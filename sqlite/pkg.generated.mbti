@@ -7,6 +7,15 @@ import {
 }
 
 // Values
+pub fn audit_filtered_projection(Database, Database, @MoonCDC.ProjectionPlan, max_rows? : Int, sample_limit? : Int) -> @MoonCDC.AuditReport raise
+
+pub fn audit_projection(Database, Database, max_rows? : Int, sample_limit? : Int) -> @MoonCDC.AuditReport raise
+
+pub fn synchronization_status(Database, Database, String) -> Json raise
+
+pub fn synchronize(Database, Database, String, batch_limit? : Int, max_batches? : Int) -> Int raise
+
+pub fn synchronize_filtered(Database, Database, String, @MoonCDC.ProjectionPlan, batch_limit? : Int, max_batches? : Int) -> Int raise
 
 // Errors
 pub suberror StoreError {
@@ -19,24 +28,43 @@ pub struct Database {
   mut closed : Bool
 }
 pub fn Database::acknowledge(Self, String, @MoonCDC.Cursor, @MoonCDC.Cursor) -> Unit raise
+pub fn Database::apply_batch(Self, @MoonCDC.Batch) -> Int raise
+pub fn Database::apply_filtered_batch(Self, @MoonCDC.Batch, @MoonCDC.ProjectionPlan) -> Int raise
+pub fn Database::audit_journal(Self, max_events? : Int) -> Json raise
 pub fn Database::capture_tables(Self) -> Array[@MoonCDC.Table] raise
 pub fn Database::close(Self) -> Unit raise
 pub fn Database::consumer_cursor(Self, String) -> @MoonCDC.Cursor raise
+pub fn Database::diagnose(Self, check_storage? : Bool) -> Json raise
 pub fn Database::drop_consumer(Self, String) -> Unit raise
 pub fn Database::execute(Self, String, Array[@MoonCDC.Value]) -> Int64 raise
+pub fn Database::fork_consumer(Self, String, String) -> @MoonCDC.Cursor raise
 pub fn Database::has_object(Self, String) -> Bool raise
+pub fn Database::initialize_filtered_projection(Self, @MoonCDC.Snapshot, @MoonCDC.ProjectionPlan) -> Unit raise
+pub fn Database::initialize_projection(Self, @MoonCDC.Snapshot) -> Unit raise
 pub fn Database::inspect_table(Self, String) -> @MoonCDC.Table raise
 pub fn Database::install_capture(Self, Array[String]) -> @MoonCDC.Cursor raise
 pub fn Database::list_tables(Self) -> Array[String] raise
 pub fn Database::open(String) -> Self raise
 pub fn Database::pause_consumer(Self, String, Bool) -> Unit raise
+pub fn Database::plan_capture(Self, Array[String]) -> Json raise
+pub fn Database::preview_batch(Self, @MoonCDC.Batch, plan? : @MoonCDC.ProjectionPlan?) -> Json raise
+pub fn Database::projection_cursor(Self) -> @MoonCDC.Cursor raise
+pub fn Database::projection_plan(Self) -> @MoonCDC.ProjectionPlan? raise
+pub fn Database::projection_status(Self) -> Json raise
+pub fn Database::projection_tables(Self) -> Array[@MoonCDC.Table] raise
 pub fn Database::prune(Self) -> Int64 raise
+pub fn Database::prune_bounded(Self, Int) -> Int64 raise
 pub fn Database::query(Self, String, Array[@MoonCDC.Value], max_rows? : Int) -> Array[@MoonCDC.Row] raise
 pub fn Database::read_batch(Self, @MoonCDC.Cursor, limit? : Int, max_wire_units? : Int) -> @MoonCDC.Batch raise
+pub fn Database::register_checkpoint(Self, String, @MoonCDC.Cursor) -> Unit raise
 pub fn Database::retention_floor(Self) -> Int64 raise
+pub fn Database::retention_plan(Self) -> Json raise
 pub fn Database::snapshot(Self, String, max_rows? : Int) -> @MoonCDC.Snapshot raise
 pub fn Database::source_cursor(Self) -> @MoonCDC.Cursor raise
+pub fn Database::status(Self) -> Json raise
+pub fn Database::uninstall_capture(Self, String) -> Unit raise
 pub fn Database::verify_capture(Self) -> Unit raise
+pub fn Database::verify_projection(Self) -> Unit raise
 
 // Type aliases
 

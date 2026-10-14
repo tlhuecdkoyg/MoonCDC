@@ -55,26 +55,28 @@ pub fn Database::read_batch(
   self.verify_capture()
   let high_water = self.source_cursor()
   @cdc.validate_cursor(cursor, high_water, self.retention_floor())
-  let rows = self.query(
+  let statement = self.prepare(
     "SELECT sequence,table_name,operation,before_row,after_row FROM _mooncdc_events WHERE sequence>? ORDER BY sequence LIMIT ?",
     [Integer(cursor.sequence), Integer(limit.to_int64())],
-    max_rows=limit,
   )
+  defer (statement.finalize() catch { _ => () })
   let tables = self.capture_tables()
   let events : Array[@cdc.Event] = []
   let mut last = cursor.sequence
   let mut units = 0
-  for row in rows {
-    let sequence = integer(row.values[0])
+  while statement.step() {
+    let sequence = integer(from_sqlite(statement.column(index=0)))
     if last == 9223372036854775807L || sequence != last + 1L {
       raise StoreError("Event journal has a gap")
     }
-    let before = decode_image(row.values[3])
-    let after = decode_image(row.values[4])
+    let before = decode_image(from_sqlite(statement.column(index=3)))
+    let after = decode_image(from_sqlite(statement.column(index=4)))
     let event = @cdc.Event::{
       sequence,
-      table: text(row.values[1]),
-      operation: @cdc.Operation::parse(text(row.values[2])),
+      table: text(from_sqlite(statement.column(index=1))),
+      operation: @cdc.Operation::parse(
+        text(from_sqlite(statement.column(index=2))),
+      ),
       before,
       after,
     }
@@ -97,7 +99,7 @@ pub fn Database::read_batch(
     events.push(event)
     last = sequence
   }
-  if rows.is_empty() && last != high_water.sequence {
+  if events.is_empty() && last != high_water.sequence {
     raise StoreError("Journal tail is missing")
   }
   let batch = @cdc.Batch::{

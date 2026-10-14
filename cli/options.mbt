@@ -30,13 +30,17 @@ fn positive(text : String, name : String, maximum : Int32) -> Int32 raise {
 fn allowed_options(command : String) -> Array[String] {
   match command {
     "snapshot" => ["--output", "--format", "--max-rows"]
-    "bootstrap" => ["--max-rows"]
-    "init" | "apply" | "ack" =>
-      ["--input", "--format", "--max-input", "--max-rows"]
+    "bootstrap" => ["--max-rows", "--plan", "--max-input"]
+    "init" | "apply" | "preview" =>
+      ["--input", "--format", "--max-input", "--max-rows", "--plan"]
+    "ack" => ["--input", "--format", "--max-input", "--max-rows"]
     "export" => ["--output", "--format", "--limit"]
-    "sync" => ["--limit", "--max-batches"]
-    "audit" => ["--max-rows"]
+    "sync" => ["--limit", "--max-batches", "--plan", "--max-input"]
+    "audit" => ["--max-rows", "--plan", "--max-input"]
     "verify" => ["--limit"]
+    "prune-bounded" => ["--limit"]
+    "make-plan" => ["--output"]
+    "restore-consumer" => ["--input", "--max-input"]
     "project-snapshot" | "project-batch" =>
       ["--input", "--output", "--format", "--plan", "--max-input", "--max-rows"]
     _ => []
@@ -56,15 +60,27 @@ pub fn parse_args(args : Array[String]) -> Options raise {
   }
   let expected = match command {
     "help" | "version" | "project-snapshot" | "project-batch" => 0
-    "status" | "init" | "apply" | "verify" | "prune" => 1
+    "target-status"
+    | "status"
+    | "init"
+    | "apply"
+    | "verify"
+    | "prune"
+    | "prune-bounded"
+    | "retention"
+    | "diagnose"
+    | "preview"
+    | "make-plan" => 1
     "snapshot"
     | "export"
     | "ack"
     | "pause"
     | "resume"
     | "drop-consumer"
-    | "audit" => 2
-    "sync" | "bootstrap" => 3
+    | "audit"
+    | "restore-consumer"
+    | "uninstall" => 2
+    "sync" | "bootstrap" | "fork-consumer" => 3
     "plan" | "install" => -1
     _ => raise UsageError("Unknown command: " + command)
   }
@@ -106,9 +122,10 @@ pub fn parse_args(args : Array[String]) -> Options raise {
     raise UsageError("--format must be json or jsonl")
   }
   let input = options.get("--input")
-  if ["init", "apply", "ack", "project-snapshot", "project-batch"].contains(
-      command,
-    ) &&
+  if [
+      "init", "apply", "preview", "ack", "restore-consumer", "project-snapshot",
+      "project-batch",
+    ].contains(command) &&
     input is None {
     raise UsageError("This command requires --input FILE (or - for stdin)")
   }
@@ -215,6 +232,14 @@ pub fn help() -> String {
     #|mooncdc prune SOURCE                     Delete events acknowledged by everyone
     #|mooncdc verify SOURCE                    Validate retained event continuity
     #|mooncdc audit SOURCE TARGET              Compare rows at matching watermarks
+    #|mooncdc preview TARGET --input FILE      Apply in a transaction, always roll back
+    #|mooncdc diagnose SOURCE                  Report schema/trigger/storage problems
+    #|mooncdc retention SOURCE                 Preview safe pruning and blockers
+    #|mooncdc prune-bounded SOURCE --limit N   Remove at most N acknowledged events
+    #|mooncdc make-plan SOURCE --output FILE   Generate editable identity projection plan
+    #|mooncdc fork-consumer SOURCE OLD NEW     Clone cursor (clone target separately)
+    #|mooncdc restore-consumer SOURCE NAME --input CURSOR_FILE
+    #|mooncdc uninstall SOURCE SOURCE_ID       Remove capture after draining consumers
     #|mooncdc project-snapshot --input FILE --plan FILE
     #|mooncdc project-batch --input FILE --plan FILE
     #|
@@ -223,7 +248,8 @@ pub fn help() -> String {
     #|Budgets: --limit 1000, --max-batches 100, --max-rows 100000,
     #|         --max-input 67108864 (bytes). Options are command-specific.
     #|Use -- before positional paths beginning with --.
-    #|Writers must enable PRAGMA recursive_triggers=ON when using REPLACE.
+    #|Writers must enable PRAGMA recursive_triggers=ON on every connection.
+    #|Filtered init/bootstrap/apply/preview/sync/audit require --plan FILE.
     #|Capture changes source schema. Projection targets must be dedicated replicas.
     #|Source transaction boundaries are not preserved across exported batches.
   text

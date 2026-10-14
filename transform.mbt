@@ -18,6 +18,24 @@ pub(all) struct ProjectionPlan {
 } derive(Debug, Eq)
 
 ///|
+/// Create an editable identity plan from a captured schema manifest.
+pub fn ProjectionPlan::identity(
+  tables : Array[Table],
+) -> ProjectionPlan raise CdcError {
+  let rules : Array[TableRule] = []
+  for table in tables {
+    let columns : Array[ColumnSelection] = []
+    for column in table.columns {
+      columns.push({ source: column.name, target: column.name, })
+    }
+    rules.push({ source: table, target: table.name, columns, filter: Always, })
+  }
+  let plan = ProjectionPlan::{ rules, }
+  plan.validate()
+  plan
+}
+
+///|
 pub fn TableRule::output_schema(self : TableRule) -> Table raise CdcError {
   self.source.validate()
   self.filter.validate(self.source)

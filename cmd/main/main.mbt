@@ -83,13 +83,20 @@ async fn emit(options : @cli.Options, text : String) -> Unit {
 ///|
 async fn execute(options : @cli.Options) -> String {
   let args = options.arguments
+  let plan = match options.plan {
+    None => None
+    Some(path) =>
+      Some(
+        @cdc.ProjectionPlan::from_wire(
+          @cdc.parse_json(load(path, options.max_input)),
+        ),
+      )
+  }
   match options.command {
     "help" => @cli.help()
     "version" => "MoonCDC 0.1.0"
     "project-snapshot" | "project-batch" => {
-      let plan = @cdc.ProjectionPlan::from_wire(
-        @cdc.parse_json(load(options.plan.unwrap(), options.max_input)),
-      )
+      let plan = plan.unwrap()
       let input = load(options.input.unwrap(), options.max_input)
       if options.command == "project-snapshot" {
         options.encode_snapshot(
@@ -105,16 +112,25 @@ async fn execute(options : @cli.Options) -> String {
       )
       let target = new_database(args[0])
       defer target.close()
-      target.initialize_projection(snapshot)
+      match plan {
+        None => target.initialize_projection(snapshot)
+        Some(plan) => target.initialize_filtered_projection(snapshot, plan)
+      }
       snapshot.cursor.to_wire().stringify()
     }
-    "apply" => {
+    "apply" | "preview" => {
       let batch = options.decode_batch(
         load(options.input.unwrap(), options.max_input),
       )
       let target = existing_database(args[0])
       defer target.close()
-      let count = target.apply_batch(batch)
+      if options.command == "preview" {
+        return target.preview_batch(batch, plan~).stringify()
+      }
+      let count = match plan {
+        None => target.apply_batch(batch)
+        Some(plan) => target.apply_filtered_batch(batch, plan)
+      }
       let report : Json = {
         "applied": count,
         "cursor": target.projection_cursor().to_wire(),
@@ -128,7 +144,10 @@ async fn execute(options : @cli.Options) -> String {
       let target = new_database(args[1])
       defer target.close()
       let snapshot = source.snapshot(args[2], max_rows=options.max_rows)
-      target.initialize_projection(snapshot)
+      match plan {
+        None => target.initialize_projection(snapshot)
+        Some(plan) => target.initialize_filtered_projection(snapshot, plan)
+      }
       let report : Json = {
         "rows": snapshot.row_count(),
         "cursor": snapshot.cursor.to_wire(),
@@ -141,13 +160,25 @@ async fn execute(options : @cli.Options) -> String {
       different_databases(args[0], args[1])
       let target = existing_database(args[1])
       defer target.close()
-      let count = @sqlite.synchronize(
-        source,
-        target,
-        args[2],
-        batch_limit=options.limit,
-        max_batches=options.max_batches,
-      )
+      let count = match plan {
+        None =>
+          @sqlite.synchronize(
+            source,
+            target,
+            args[2],
+            batch_limit=options.limit,
+            max_batches=options.max_batches,
+          )
+        Some(plan) =>
+          @sqlite.synchronize_filtered(
+            source,
+            target,
+            args[2],
+            plan,
+            batch_limit=options.limit,
+            max_batches=options.max_batches,
+          )
+      }
       let report : Json = {
         "applied": count,
         "cursor": target.projection_cursor().to_wire(),
@@ -161,9 +192,18 @@ async fn execute(options : @cli.Options) -> String {
       different_databases(args[0], args[1])
       let target = existing_database(args[1])
       defer target.close()
-      @sqlite.audit_projection(source, target, max_rows=options.max_rows)
-      .to_wire()
-      .stringify()
+      let report = match plan {
+        None =>
+          @sqlite.audit_projection(source, target, max_rows=options.max_rows)
+        Some(plan) =>
+          @sqlite.audit_filtered_projection(
+            source,
+            target,
+            plan,
+            max_rows=options.max_rows,
+          )
+      }
+      report.to_wire().stringify()
     }
     _ => {
       let source = existing_database(args[0])
@@ -173,6 +213,37 @@ async fn execute(options : @cli.Options) -> String {
         "install" =>
           source.install_capture(args[1:].to_owned()).to_wire().stringify()
         "status" => source.status().stringify()
+        "target-status" => source.projection_status().stringify()
+        "diagnose" => source.diagnose(check_storage=true).stringify()
+        "retention" => source.retention_plan().stringify()
+        "make-plan" => {
+          source.verify_capture()
+          @cdc.ProjectionPlan::identity(source.capture_tables())
+          .to_wire()
+          .stringify()
+        }
+        "restore-consumer" => {
+          let value = @cdc.parse_json(
+            load(options.input.unwrap(), options.max_input),
+          )
+          let cursor = @cdc.Cursor::from_wire(value)
+          source.register_checkpoint(args[1], cursor)
+          cursor.to_wire().stringify()
+        }
+        "fork-consumer" =>
+          source.fork_consumer(args[1], args[2]).to_wire().stringify()
+        "prune-bounded" => {
+          let deleted = source.prune_bounded(options.limit)
+          let report : Json = {
+            "deleted": deleted.to_string(),
+            "floor": source.retention_floor().to_string(),
+          }
+          report.stringify()
+        }
+        "uninstall" => {
+          source.uninstall_capture(args[1])
+          "{\"ok\":true}"
+        }
         "snapshot" =>
           options.encode_snapshot(
             source.snapshot(args[1], max_rows=options.max_rows),

@@ -84,6 +84,28 @@ def main():
         run("sync", source, target, "replica", ok=False)
         run("resume", source, "replica")
         run("sync", source, target, "replica")
+        assert json.loads(run("diagnose", source))["healthy"]
+        assert json.loads(run("target-status", target))["cursor"] == json.loads(run("status", source))["cursor"]
+        plan_file = work / "plan.json"
+        run("make-plan", source, "--output", plan_file)
+        plan = json.loads(plan_file.read_text(encoding="utf-8"))
+        plan["rules"][0]["target"] = "visible"
+        plan["rules"][0]["filter"] = {"op": "integer_between", "column": "id", "lower": "1", "upper": "100"}
+        plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        filtered = work / "filtered.db"
+        run("bootstrap", source, filtered, "filtered", "--plan", plan_file)
+        with connect(source) as db:
+            db.execute("INSERT INTO records VALUES(4,'visible',NULL)")
+        pending = work / "pending.json"
+        run("export", source, "filtered", "--output", pending)
+        assert json.loads(run("preview", filtered, "--input", pending, "--plan", plan_file))["applicable"]
+        assert json.loads(run("sync", source, filtered, "filtered", "--plan", plan_file))["applied"] == 1
+        assert json.loads(run("audit", source, filtered, "--plan", plan_file))["consistent"]
+        changed = work / "changed-plan.json"
+        plan["rules"][0]["filter"] = {"op": "always"}
+        changed.write_text(json.dumps(plan), encoding="utf-8")
+        run("sync", source, filtered, "filtered", "--plan", changed, ok=False)
+        run("sync", source, target, "replica")
         with connect(target) as db:
             db.execute("UPDATE records SET value='external divergence'")
         assert not json.loads(run("audit", source, target))["consistent"]

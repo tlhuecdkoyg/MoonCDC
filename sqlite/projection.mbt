@@ -52,6 +52,15 @@ pub fn Database::initialize_projection(
   self : Database,
   snapshot : @cdc.Snapshot,
 ) -> Unit raise {
+  self.initialize_projection_internal(snapshot, None)
+}
+
+///|
+fn Database::initialize_projection_internal(
+  self : Database,
+  snapshot : @cdc.Snapshot,
+  plan : @cdc.ProjectionPlan?,
+) -> Unit raise {
   snapshot.validate()
   self.begin(true)
   defer self.rollback()
@@ -78,10 +87,14 @@ pub fn Database::initialize_projection(
       self.execute(insert.sql, insert.parameters) |> ignore
     }
   }
-  self.execute("INSERT INTO _mooncdc_projection VALUES (1,1,?,?,?)", [
+  self.execute("INSERT INTO _mooncdc_projection VALUES (1,1,?,?,?,?)", [
     Text(snapshot.cursor.source),
     Integer(snapshot.cursor.sequence),
     Text(@cdc.schemas_to_wire(snapshot.schemas())),
+    match plan {
+      None => Null
+      Some(plan) => Text(plan.to_wire().stringify())
+    },
   ])
   |> ignore
   self.commit()
@@ -136,10 +149,24 @@ pub fn Database::apply_batch(
   self : Database,
   batch : @cdc.Batch,
 ) -> Int32 raise {
+  self.apply_batch_internal(batch, None)
+}
+
+///|
+fn Database::apply_batch_internal(
+  self : Database,
+  batch : @cdc.Batch,
+  plan : @cdc.ProjectionPlan?,
+) -> Int32 raise {
   batch.validate()
   self.begin(true)
   defer self.rollback()
   self.verify_projection()
+  if self.projection_plan() != plan {
+    raise StoreError(
+      "Projection plan changed; initialize a new target and consumer",
+    )
+  }
   let current = self.projection_cursor()
   if current.source != batch.start.source {
     raise StoreError("Projection belongs to a different source")

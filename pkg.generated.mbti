@@ -12,6 +12,12 @@ pub fn boolean_field(Json, String) -> Bool raise CdcError
 
 pub fn check_name(String) -> Unit raise CdcError
 
+pub fn compare_schemas(Array[Table], Array[Table]) -> Json raise CdcError
+
+pub fn compare_snapshots(Snapshot, Snapshot, sample_limit? : Int) -> AuditReport raise CdcError
+
+pub fn compare_table(TableSnapshot, TableSnapshot, sample_limit? : Int) -> TableAudit raise CdcError
+
 pub fn decode_hex(String) -> Bytes raise CdcError
 
 pub fn encode_hex(Bytes) -> String
@@ -21,6 +27,8 @@ pub fn field(Json, String) -> Json raise CdcError
 pub fn find_table(Array[Table], String) -> Table raise CdcError
 
 pub fn integer_field(Json, String) -> Int64 raise CdcError
+
+pub fn merge_batches(Array[Batch], max_events? : Int) -> Batch raise CdcError
 
 pub fn parse_integer(String) -> Int64 raise CdcError
 
@@ -55,21 +63,56 @@ pub suberror CdcError {
 pub fn CdcError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub(all) struct AuditReport {
+  cursor : Cursor
+  tables : Array[TableAudit]
+} derive(Eq, @debug.Debug)
+pub fn AuditReport::consistent(Self) -> Bool
+#deprecated
+pub fn AuditReport::equal(Self, Self) -> Bool
+#deprecated
+pub fn AuditReport::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn AuditReport::to_repr(Self) -> @debug.Repr
+pub fn AuditReport::to_wire(Self) -> Json
+
 pub(all) struct Batch {
   start : Cursor
   end : Cursor
   high_water : Int64
   events : Array[Event]
 } derive(Eq, @debug.Debug)
+pub fn Batch::compact_adjacent(Self, Array[Table]) -> Self raise CdcError
 #deprecated
 pub fn Batch::equal(Self, Self) -> Bool
+pub fn Batch::from_jsonl(String) -> Self raise CdcError
 pub fn Batch::from_wire(Json) -> Self raise CdcError
 #deprecated
 pub fn Batch::not_equal(Self, Self) -> Bool
+pub fn Batch::split(Self, max_events? : Int, max_wire_units? : Int) -> Array[Self] raise CdcError
+pub fn Batch::summarize(Self, Array[Table]) -> Json raise CdcError
+pub fn Batch::to_jsonl(Self) -> String raise CdcError
 #deprecated
 pub fn Batch::to_repr(Self) -> @debug.Repr
 pub fn Batch::to_wire(Self) -> Json raise CdcError
 pub fn Batch::validate(Self) -> Unit raise CdcError
+
+pub struct BatchDecoder {
+  max_events : Int
+  max_line_units : Int
+  max_total_units : Int
+  mut total : Int
+  mut pending : String
+  mut start : Cursor?
+  mut end : Cursor?
+  mut high_water : Int64
+  events : Array[Event]
+  mut failed : Bool
+  mut finished : Bool
+}
+pub fn BatchDecoder::feed(Self, String) -> Unit raise CdcError
+pub fn BatchDecoder::finish(Self) -> Batch raise CdcError
+pub fn BatchDecoder::new(max_events? : Int, max_line_units? : Int, max_total_units? : Int) -> Self raise CdcError
 
 pub(all) struct Column {
   name : String
@@ -84,6 +127,17 @@ pub fn Column::not_equal(Self, Self) -> Bool
 #deprecated
 pub fn Column::to_repr(Self) -> @debug.Repr
 pub fn Column::to_wire(Self) -> Json
+
+pub(all) struct ColumnSelection {
+  source : String
+  target : String
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn ColumnSelection::equal(Self, Self) -> Bool
+#deprecated
+pub fn ColumnSelection::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn ColumnSelection::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Cursor {
   source : String
@@ -130,6 +184,43 @@ pub fn Operation::parse(String) -> Self raise CdcError
 #deprecated
 pub fn Operation::to_repr(Self) -> @debug.Repr
 
+pub(all) enum Predicate {
+  Always
+  Equal(String, Value)
+  IsNull(String)
+  IntegerBetween(String, Int64, Int64)
+  TextPrefix(String, String)
+  All(Array[Predicate])
+  Any(Array[Predicate])
+  Not(Predicate)
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Predicate::equal(Self, Self) -> Bool
+pub fn Predicate::from_wire(Json) -> Self raise CdcError
+pub fn Predicate::matches(Self, Table, Row) -> Bool raise CdcError
+#deprecated
+pub fn Predicate::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn Predicate::to_repr(Self) -> @debug.Repr
+pub fn Predicate::to_wire(Self) -> Json raise CdcError
+pub fn Predicate::validate(Self, Table) -> Unit raise CdcError
+
+pub(all) struct ProjectionPlan {
+  rules : Array[TableRule]
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn ProjectionPlan::equal(Self, Self) -> Bool
+pub fn ProjectionPlan::from_wire(Json) -> Self raise CdcError
+pub fn ProjectionPlan::identity(Array[Table]) -> Self raise CdcError
+#deprecated
+pub fn ProjectionPlan::not_equal(Self, Self) -> Bool
+pub fn ProjectionPlan::project_batch(Self, Batch) -> Batch raise CdcError
+pub fn ProjectionPlan::project_snapshot(Self, Snapshot) -> Snapshot raise CdcError
+#deprecated
+pub fn ProjectionPlan::to_repr(Self) -> @debug.Repr
+pub fn ProjectionPlan::to_wire(Self) -> Json raise CdcError
+pub fn ProjectionPlan::validate(Self) -> Unit raise CdcError
+
 pub(all) struct Row {
   values : Array[Value]
 } derive(Eq, @debug.Debug)
@@ -144,17 +235,33 @@ pub fn Row::to_repr(Self) -> @debug.Repr
 pub fn Row::to_wire(Self) -> Json raise CdcError
 pub fn Row::validate(Self, Table) -> Unit raise CdcError
 
+pub(all) struct RowDifference {
+  table : String
+  key : String
+  kind : String
+  columns : Array[String]
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn RowDifference::equal(Self, Self) -> Bool
+#deprecated
+pub fn RowDifference::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn RowDifference::to_repr(Self) -> @debug.Repr
+pub fn RowDifference::to_wire(Self) -> Json
+
 pub(all) struct Snapshot {
   cursor : Cursor
   tables : Array[TableSnapshot]
 } derive(Eq, @debug.Debug)
 #deprecated
 pub fn Snapshot::equal(Self, Self) -> Bool
+pub fn Snapshot::from_jsonl(String, max_rows? : Int, max_units? : Int) -> Self raise CdcError
 pub fn Snapshot::from_wire(Json) -> Self raise CdcError
 #deprecated
 pub fn Snapshot::not_equal(Self, Self) -> Bool
 pub fn Snapshot::row_count(Self) -> Int
 pub fn Snapshot::schemas(Self) -> Array[Table]
+pub fn Snapshot::to_jsonl(Self) -> String raise CdcError
 #deprecated
 pub fn Snapshot::to_repr(Self) -> @debug.Repr
 pub fn Snapshot::to_wire(Self) -> Json raise CdcError
@@ -196,6 +303,40 @@ pub fn Table::to_wire(Self) -> Json
 pub fn Table::trigger_sql(Self, Int, Operation) -> String raise CdcError
 pub fn Table::update_statement(Self, Row, Row, target? : String) -> Statement raise CdcError
 pub fn Table::validate(Self) -> Unit raise CdcError
+
+pub(all) struct TableAudit {
+  table : String
+  expected_rows : Int
+  actual_rows : Int
+  missing : Int
+  unexpected : Int
+  changed : Int
+  samples : Array[RowDifference]
+} derive(Eq, @debug.Debug)
+pub fn TableAudit::consistent(Self) -> Bool
+#deprecated
+pub fn TableAudit::equal(Self, Self) -> Bool
+#deprecated
+pub fn TableAudit::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn TableAudit::to_repr(Self) -> @debug.Repr
+pub fn TableAudit::to_wire(Self) -> Json
+
+pub(all) struct TableRule {
+  source : Table
+  target : String
+  columns : Array[ColumnSelection]
+  filter : Predicate
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn TableRule::equal(Self, Self) -> Bool
+#deprecated
+pub fn TableRule::not_equal(Self, Self) -> Bool
+pub fn TableRule::output_schema(Self) -> Table raise CdcError
+pub fn TableRule::project_event(Self, Event) -> Event? raise CdcError
+pub fn TableRule::project_row(Self, Row) -> Row? raise CdcError
+#deprecated
+pub fn TableRule::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TableSnapshot {
   schema : Table

@@ -224,7 +224,7 @@ pub fn Table::trigger_sql(
   " ON " +
   quote_identifier(self.name) +
   " BEGIN " +
-    "SELECT RAISE(ABORT,'MoonCDC: enable recursive_triggers') WHERE (SELECT recursive_triggers FROM pragma_recursive_triggers)=0; " +
+  "SELECT RAISE(ABORT,'MoonCDC: enable recursive_triggers') WHERE (SELECT recursive_triggers FROM pragma_recursive_triggers)=0; " +
   key_guard +
   "INSERT INTO _mooncdc_events(table_name,operation,before_row,after_row) VALUES (" +
   quote_literal(self.name) +
@@ -251,6 +251,6 @@ pub fn source_schema_sql() -> Array[String] {
 ///|
 pub fn target_schema_sql() -> Array[String] {
   [
-    "CREATE TABLE _mooncdc_projection(singleton INTEGER PRIMARY KEY CHECK(singleton=1),format INTEGER NOT NULL,source_id TEXT NOT NULL,sequence INTEGER NOT NULL CHECK(sequence>=0),schema_json TEXT NOT NULL)",
+    "CREATE TABLE _mooncdc_projection(singleton INTEGER PRIMARY KEY CHECK(singleton=1),format INTEGER NOT NULL,source_id TEXT NOT NULL,sequence INTEGER NOT NULL CHECK(sequence>=0),schema_json TEXT NOT NULL,plan_json TEXT)",
   ]
 }

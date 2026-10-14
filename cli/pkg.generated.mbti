@@ -1,0 +1,38 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tlhuecdkoyg/MoonCDC/cli"
+
+import {
+  "tlhuecdkoyg/MoonCDC",
+}
+
+// Values
+pub fn help() -> String
+
+pub fn parse_args(Array[String]) -> Options raise
+
+// Errors
+pub suberror UsageError {
+  UsageError(String)
+}
+
+// Types and methods
+pub struct Options {
+  command : String
+  arguments : Array[String]
+  input : String?
+  output : String?
+  plan : String?
+  format : String
+  limit : Int
+  max_batches : Int
+  max_rows : Int
+  max_input : Int
+}
+pub fn Options::decode_batch(Self, String) -> @MoonCDC.Batch raise
+pub fn Options::decode_snapshot(Self, String) -> @MoonCDC.Snapshot raise
+pub fn Options::encode_batch(Self, @MoonCDC.Batch) -> String raise
+pub fn Options::encode_snapshot(Self, @MoonCDC.Snapshot) -> String raise
+
+// Type aliases
+
+// Traits
