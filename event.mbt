@@ -144,9 +144,8 @@ pub fn Batch::validate(self : Batch) -> Unit raise CdcError {
     }
     previous = event.sequence
   }
-  if previous != self.end.sequence {
-    raise Invalid("Batch end must equal last event or empty batch start")
-  }
+  // Filtered projections may omit events, including the final event in an interval.
+  // The cursor still acknowledges the entire examined source interval.
 }
 
 ///|

@@ -89,3 +89,59 @@ pub extend Snapshot with Eq::{equal, not_equal}
 ///|
 #deprecated
 pub extend Snapshot with @debug.Debug::{to_repr}
+
+///|
+#deprecated
+pub extend Predicate with Eq::{equal, not_equal}
+
+///|
+#deprecated
+pub extend Predicate with @debug.Debug::{to_repr}
+
+///|
+#deprecated
+pub extend ColumnSelection with Eq::{equal, not_equal}
+
+///|
+#deprecated
+pub extend ColumnSelection with @debug.Debug::{to_repr}
+
+///|
+#deprecated
+pub extend TableRule with Eq::{equal, not_equal}
+
+///|
+#deprecated
+pub extend TableRule with @debug.Debug::{to_repr}
+
+///|
+#deprecated
+pub extend ProjectionPlan with Eq::{equal, not_equal}
+
+///|
+#deprecated
+pub extend ProjectionPlan with @debug.Debug::{to_repr}
+
+///|
+#deprecated
+pub extend RowDifference with Eq::{equal, not_equal}
+
+///|
+#deprecated
+pub extend RowDifference with @debug.Debug::{to_repr}
+
+///|
+#deprecated
+pub extend TableAudit with Eq::{equal, not_equal}
+
+///|
+#deprecated
+pub extend TableAudit with @debug.Debug::{to_repr}
+
+///|
+#deprecated
+pub extend AuditReport with Eq::{equal, not_equal}
+
+///|
+#deprecated
+pub extend AuditReport with @debug.Debug::{to_repr}
