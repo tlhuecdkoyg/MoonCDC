@@ -145,9 +145,9 @@ fn sqlite_wire_value(expression : String) -> String {
   "WHEN 'integer' THEN json_array('integer',CAST(" +
   expression +
   " AS TEXT)) " +
-  "WHEN 'real' THEN json_array('real'," +
+  "WHEN 'real' THEN json_array('real',printf('%!.26g'," +
   expression +
-  ") " +
+  ")) " +
   "WHEN 'text' THEN json_array('text'," +
   expression +
   ") " +
