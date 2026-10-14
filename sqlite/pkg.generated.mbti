@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tlhuecdkoyg/MoonCDC/sqlite"
+
+import {
+  "moonbit-community/sqlite3",
+  "tlhuecdkoyg/MoonCDC",
+}
+
+// Values
+
+// Errors
+pub suberror StoreError {
+  StoreError(String)
+}
+
+// Types and methods
+pub struct Database {
+  connection : @sqlite3.Connection
+  mut closed : Bool
+}
+pub fn Database::acknowledge(Self, String, @MoonCDC.Cursor, @MoonCDC.Cursor) -> Unit raise
+pub fn Database::capture_tables(Self) -> Array[@MoonCDC.Table] raise
+pub fn Database::close(Self) -> Unit raise
+pub fn Database::consumer_cursor(Self, String) -> @MoonCDC.Cursor raise
+pub fn Database::drop_consumer(Self, String) -> Unit raise
+pub fn Database::execute(Self, String, Array[@MoonCDC.Value]) -> Int64 raise
+pub fn Database::has_object(Self, String) -> Bool raise
+pub fn Database::inspect_table(Self, String) -> @MoonCDC.Table raise
+pub fn Database::install_capture(Self, Array[String]) -> @MoonCDC.Cursor raise
+pub fn Database::list_tables(Self) -> Array[String] raise
+pub fn Database::open(String) -> Self raise
+pub fn Database::pause_consumer(Self, String, Bool) -> Unit raise
+pub fn Database::prune(Self) -> Int64 raise
+pub fn Database::query(Self, String, Array[@MoonCDC.Value], max_rows? : Int) -> Array[@MoonCDC.Row] raise
+pub fn Database::read_batch(Self, @MoonCDC.Cursor, limit? : Int, max_wire_units? : Int) -> @MoonCDC.Batch raise
+pub fn Database::retention_floor(Self) -> Int64 raise
+pub fn Database::snapshot(Self, String, max_rows? : Int) -> @MoonCDC.Snapshot raise
+pub fn Database::source_cursor(Self) -> @MoonCDC.Cursor raise
+pub fn Database::verify_capture(Self) -> Unit raise
+
+// Type aliases
+
+// Traits
