@@ -1,0 +1,231 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tlhuecdkoyg/MoonCDC"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn array_field(Json, String) -> Array[Json] raise CdcError
+
+pub fn boolean_field(Json, String) -> Bool raise CdcError
+
+pub fn check_name(String) -> Unit raise CdcError
+
+pub fn decode_hex(String) -> Bytes raise CdcError
+
+pub fn encode_hex(Bytes) -> String
+
+pub fn field(Json, String) -> Json raise CdcError
+
+pub fn find_table(Array[Table], String) -> Table raise CdcError
+
+pub fn integer_field(Json, String) -> Int64 raise CdcError
+
+pub fn parse_integer(String) -> Int64 raise CdcError
+
+pub fn parse_json(String) -> Json raise CdcError
+
+pub fn quote_identifier(String) -> String raise CdcError
+
+pub fn quote_literal(String) -> String raise CdcError
+
+pub fn schemas_from_wire(String) -> Array[Table] raise CdcError
+
+pub fn schemas_to_wire(Array[Table]) -> String
+
+pub fn source_schema_sql() -> Array[String]
+
+pub fn string_field(Json, String) -> String raise CdcError
+
+pub fn target_schema_sql() -> Array[String]
+
+pub fn trigger_name(Int, Operation) -> String raise CdcError
+
+pub fn validate_cursor(Cursor, Cursor, Int64) -> Unit raise CdcError
+
+// Errors
+pub suberror CdcError {
+  Invalid(String)
+  Conflict(String)
+  Stale(String)
+  Corrupt(String)
+} derive(@debug.Debug)
+#deprecated
+pub fn CdcError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) struct Batch {
+  start : Cursor
+  end : Cursor
+  high_water : Int64
+  events : Array[Event]
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Batch::equal(Self, Self) -> Bool
+pub fn Batch::from_wire(Json) -> Self raise CdcError
+#deprecated
+pub fn Batch::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn Batch::to_repr(Self) -> @debug.Repr
+pub fn Batch::to_wire(Self) -> Json raise CdcError
+pub fn Batch::validate(Self) -> Unit raise CdcError
+
+pub(all) struct Column {
+  name : String
+  declared_type : String
+  required : Bool
+  key_position : Int
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Column::equal(Self, Self) -> Bool
+#deprecated
+pub fn Column::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn Column::to_repr(Self) -> @debug.Repr
+pub fn Column::to_wire(Self) -> Json
+
+pub(all) struct Cursor {
+  source : String
+  sequence : Int64
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Cursor::equal(Self, Self) -> Bool
+pub fn Cursor::from_wire(Json) -> Self raise CdcError
+#deprecated
+pub fn Cursor::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn Cursor::to_repr(Self) -> @debug.Repr
+pub fn Cursor::to_wire(Self) -> Json
+pub fn Cursor::validate(Self) -> Unit raise CdcError
+
+pub(all) struct Event {
+  sequence : Int64
+  table : String
+  operation : Operation
+  before : Row?
+  after : Row?
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Event::equal(Self, Self) -> Bool
+pub fn Event::from_wire(Json) -> Self raise CdcError
+#deprecated
+pub fn Event::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn Event::to_repr(Self) -> @debug.Repr
+pub fn Event::to_wire(Self) -> Json raise CdcError
+pub fn Event::validate(Self) -> Unit raise CdcError
+
+pub(all) enum Operation {
+  Insert
+  Update
+  Delete
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Operation::equal(Self, Self) -> Bool
+pub fn Operation::name(Self) -> String
+#deprecated
+pub fn Operation::not_equal(Self, Self) -> Bool
+pub fn Operation::parse(String) -> Self raise CdcError
+#deprecated
+pub fn Operation::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Row {
+  values : Array[Value]
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Row::equal(Self, Self) -> Bool
+pub fn Row::from_wire(Json) -> Self raise CdcError
+pub fn Row::key(Self, Table) -> String raise CdcError
+#deprecated
+pub fn Row::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn Row::to_repr(Self) -> @debug.Repr
+pub fn Row::to_wire(Self) -> Json raise CdcError
+pub fn Row::validate(Self, Table) -> Unit raise CdcError
+
+pub(all) struct Snapshot {
+  cursor : Cursor
+  tables : Array[TableSnapshot]
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Snapshot::equal(Self, Self) -> Bool
+pub fn Snapshot::from_wire(Json) -> Self raise CdcError
+#deprecated
+pub fn Snapshot::not_equal(Self, Self) -> Bool
+pub fn Snapshot::row_count(Self) -> Int
+pub fn Snapshot::schemas(Self) -> Array[Table]
+#deprecated
+pub fn Snapshot::to_repr(Self) -> @debug.Repr
+pub fn Snapshot::to_wire(Self) -> Json raise CdcError
+pub fn Snapshot::validate(Self) -> Unit raise CdcError
+
+pub(all) struct Statement {
+  sql : String
+  parameters : Array[Value]
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Statement::equal(Self, Self) -> Bool
+#deprecated
+pub fn Statement::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn Statement::to_repr(Self) -> @debug.Repr
+
+pub(all) struct Table {
+  name : String
+  columns : Array[Column]
+} derive(Eq, @debug.Debug)
+pub fn Table::column_index(Self, String) -> Int?
+pub fn Table::create_projection_sql(Self, String) -> String raise CdcError
+pub fn Table::delete_statement(Self, Row, target? : String) -> Statement raise CdcError
+#deprecated
+pub fn Table::equal(Self, Self) -> Bool
+pub fn Table::from_wire(Json) -> Self raise CdcError
+pub fn Table::insert_statement(Self, Row, target? : String) -> Statement raise CdcError
+pub fn Table::key_indexes(Self) -> Array[Int]
+pub fn Table::key_predicate(Self, Row) -> Statement raise CdcError
+pub fn Table::lookup_statement(Self, Row, target? : String) -> Statement raise CdcError
+#deprecated
+pub fn Table::not_equal(Self, Self) -> Bool
+pub fn Table::row_expression(Self, String) -> String raise CdcError
+pub fn Table::select_sql(Self) -> String raise CdcError
+pub fn Table::signature(Self) -> String
+#deprecated
+pub fn Table::to_repr(Self) -> @debug.Repr
+pub fn Table::to_wire(Self) -> Json
+pub fn Table::trigger_sql(Self, Int, Operation) -> String raise CdcError
+pub fn Table::update_statement(Self, Row, Row, target? : String) -> Statement raise CdcError
+pub fn Table::validate(Self) -> Unit raise CdcError
+
+pub(all) struct TableSnapshot {
+  schema : Table
+  rows : Array[Row]
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn TableSnapshot::equal(Self, Self) -> Bool
+#deprecated
+pub fn TableSnapshot::not_equal(Self, Self) -> Bool
+#deprecated
+pub fn TableSnapshot::to_repr(Self) -> @debug.Repr
+
+pub(all) enum Value {
+  Null
+  Integer(Int64)
+  Real(Double)
+  Text(String)
+  Blob(Bytes)
+} derive(Eq, @debug.Debug)
+#deprecated
+pub fn Value::equal(Self, Self) -> Bool
+pub fn Value::from_wire(Json) -> Self raise CdcError
+#deprecated
+pub fn Value::not_equal(Self, Self) -> Bool
+pub fn Value::storage_class(Self) -> String
+#deprecated
+pub fn Value::to_repr(Self) -> @debug.Repr
+pub fn Value::to_wire(Self) -> Json raise CdcError
+pub fn Value::validate(Self) -> Unit raise CdcError
+
+// Type aliases
+
+// Traits
