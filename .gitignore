@@ -1,0 +1,9 @@
+_build/
+target/
+.mooncakes/
+.repos/
+*.db
+*.db-wal
+*.db-shm
+__pycache__/
+.verification/
