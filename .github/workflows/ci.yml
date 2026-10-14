@@ -39,5 +39,7 @@ jobs:
         run: |
           $version = moonc -v
           if ($version -notmatch 'v0.10.15\+943464bfa') { throw "Unexpected compiler: $version" }
+      - name: Initialize dependency registry
+        run: moon update
       - name: Verify project
         run: python scripts/verify.py

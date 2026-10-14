@@ -5,6 +5,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import random
 from contextlib import contextmanager
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -109,6 +110,46 @@ def main():
         with connect(target) as db:
             db.execute("UPDATE records SET value='external divergence'")
         assert not json.loads(run("audit", source, target))["consistent"]
+        # Concurrent commits around bootstrap must appear in snapshot or journal,
+        # with neither loss nor duplicate application at the handoff.
+        concurrent_source, concurrent_target = work / "concurrent.db", work / "concurrent-target.db"
+        with connect(concurrent_source) as db:
+            db.execute("CREATE TABLE items(id INTEGER PRIMARY KEY,value)")
+        run("install", concurrent_source, "items")
+        writer_code = """import sqlite3,sys,time
+d=sqlite3.connect(sys.argv[1], timeout=10)
+d.execute('PRAGMA recursive_triggers=ON')
+print('ready',flush=True)
+for i in range(150):
+    d.execute('INSERT INTO items VALUES(?,?)',(i,'initial'))
+    d.commit()
+    time.sleep(0.002)
+d.close()
+"""
+        writer = subprocess.Popen([sys.executable, "-c", writer_code, str(concurrent_source)], stdout=subprocess.PIPE, text=True)
+        try:
+            assert writer.stdout.readline().strip() == "ready"
+            run("bootstrap", concurrent_source, concurrent_target, "concurrent")
+            assert writer.wait(timeout=20) == 0
+        finally:
+            if writer.poll() is None:
+                writer.kill()
+                writer.wait()
+        run("sync", concurrent_source, concurrent_target, "concurrent", "--limit", "7")
+        assert json.loads(run("audit", concurrent_source, concurrent_target))["consistent"]
+        rng = random.Random(20261014)
+        values = [None, -9223372036854775808, 9223372036854775807, 0.12345678901234567, "text\x00尾", b"\x00\xff"]
+        for cycle in range(5):
+            with connect(concurrent_source) as db:
+                for _ in range(60):
+                    key = rng.randrange(150)
+                    if rng.randrange(4) == 0:
+                        db.execute("DELETE FROM items WHERE id=?", (key,))
+                    else:
+                        db.execute("INSERT INTO items VALUES(?,?) ON CONFLICT(id) DO UPDATE SET value=excluded.value", (key, rng.choice(values)))
+            run("sync", concurrent_source, concurrent_target, "concurrent", "--limit", "11")
+            assert json.loads(run("audit", concurrent_source, concurrent_target))["consistent"], cycle
+        print("PASS: concurrent snapshot handoff and seeded mixed-type mutation replay")
         print("PASS: external writer, typed values, durable restart, replay, killed transaction, retention, divergence and CLI guards")
 
 

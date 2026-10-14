@@ -2,7 +2,6 @@
 import pathlib
 import subprocess
 import sys
-import os
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
@@ -21,7 +20,7 @@ def main():
     run("moon", "build", "--target", "native", "--deny-warn")
     run("moon", "info", "--target", "native")
     run(sys.executable, "scripts/count_loc.py")
-    executable = ROOT / "_build/native/debug/build/cmd/main" / ("main.exe" if os.name == "nt" else "main.exe")
+    executable = ROOT / "_build/native/debug/build/cmd/main/main.exe"
     # moon uses .exe for native executables on both Windows and Linux.
     run(sys.executable, "scripts/integration.py", executable)
 

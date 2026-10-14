@@ -40,6 +40,7 @@ MoonCDC 为已有 SQLite 表安装事务内的行级触发器，记录带类型�
 ## 快速运行
 
 ```sh
+moon update
 moon build --target native
 moon run cmd/main --target native -- help
 python examples/demo.py
