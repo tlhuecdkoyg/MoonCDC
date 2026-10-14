@@ -1,0 +1,24 @@
+MoonCDC
+Copyright 2026 tlhuecdkoyg
+Licensed under Apache License 2.0; see LICENSE.
+
+This is an original MoonBit change-capture/projection implementation, not a port
+of an existing CDC product. Third-party dependencies are downloaded by moon and
+are not vendored or included in the production source line count:
+
+- moonbit-community/sqlite3 0.2.3: Apache-2.0, according to package metadata.
+  https://mooncakes.io/docs/moonbit-community/sqlite3
+  Bundled SQLite 3.49.1 engine: public domain (SQLite upstream).
+  https://www.sqlite.org/copyright.html
+- moonbitlang/async 0.22.4: Apache-2.0.
+  https://github.com/moonbitlang/async
+- moonbitlang/x 0.5.5: Apache-2.0.
+  https://github.com/moonbitlang/x
+- MoonBit core/toolchain: installed separately; its own upstream licenses apply.
+  https://github.com/moonbitlang/core
+
+Generated pkg.generated.mbti files are compiler output. Test data is synthetic.
+The bounded CLI input pattern was adapted from the author's own MoonFixture
+project (Apache-2.0): https://github.com/tlhuecdkoyg/MoonFixture
+AI assistance was used for implementation and tests; the repository author
+retains responsibility for validation and maintenance.

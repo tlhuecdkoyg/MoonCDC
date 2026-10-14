@@ -1,0 +1,43 @@
+name: CI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  MOONBIT_INSTALL_VERSION: 0.10.15+943464bfa
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned MoonBit (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - name: Install pinned MoonBit (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-RestMethod https://cli.moonbitlang.com/install/powershell.ps1 | Invoke-Expression
+          "$env:USERPROFILE\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Verify compiler baseline
+        shell: pwsh
+        run: |
+          $version = moonc -v
+          if ($version -notmatch 'v0.10.15\+943464bfa') { throw "Unexpected compiler: $version" }
+      - name: Verify project
+        run: python scripts/verify.py
