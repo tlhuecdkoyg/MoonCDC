@@ -23,6 +23,7 @@ def main():
     executable = ROOT / "_build/native/debug/build/cmd/main/main.exe"
     # moon uses .exe for native executables on both Windows and Linux.
     run(sys.executable, "scripts/integration.py", executable)
+    run(sys.executable, "scripts/real_regression.py", executable)
 
 
 if __name__ == "__main__":

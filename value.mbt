@@ -118,7 +118,7 @@ pub fn Value::to_wire(self : Value) -> Json raise CdcError {
     Null => Json::array([Json::string("null")])
     Integer(v) =>
       Json::array([Json::string("integer"), Json::string(v.to_string())])
-    Real(v) => Json::array([Json::string("real"), Json::string(v.to_string())])
+    Real(v) => real_to_wire(v)
     Text(v) => Json::array([Json::string("text"), Json::string(v)])
     Blob(v) => Json::array([Json::string("blob"), Json::string(encode_hex(v))])
   }
@@ -134,6 +134,8 @@ pub fn Value::from_wire(value : Json) -> Value raise CdcError {
         Number(number, ..) => Real(number)
         _ => raise Invalid("Invalid REAL decimal")
       }
+    ["real", String(significand), String(exponent)] =>
+      Real(real_from_binary(significand, exponent))
     ["text", String(v)] => Text(v)
     ["blob", String(v)] => Blob(decode_hex(v))
     _ => raise Invalid("Expected tagged SQLite value")
