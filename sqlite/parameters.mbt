@@ -16,6 +16,8 @@ fn sqlite_parameter_space(character : Int32) -> Bool {
 ///|
 /// UTF-8 BLOB binding plus CAST preserves leading U+FEFF as text content. Rewrite
 /// parameter tokens only; never interpolate a bound value or change its index.
+/// Unary '+' removes CAST's expression affinity, keeping parameter comparisons
+/// identical to SQLite text binding rather than coercing the other operand.
 /// Token rules follow the bundled SQLite tokenizer, including Tcl-style names.
 fn text_parameter_sql(
   sql : String,
@@ -180,7 +182,7 @@ fn text_parameter_sql(
     }
     if parameter <= values.length() && values[parameter - 1] is Text(_) {
       output.write_view(sql.view(start_offset=copied, end_offset=start))
-      output.write_string("CAST(")
+      output.write_string("+CAST(")
       output.write_view(sql.view(start_offset=start, end_offset=index))
       output.write_string(" AS TEXT)")
       copied = index

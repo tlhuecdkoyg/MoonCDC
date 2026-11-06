@@ -91,7 +91,14 @@ Only UTF-8 databases with valid Unicode TEXT are supported. Invalid UTF-8 detect
 in historical/external writes stops snapshots, consumption and audits; use a new
 reviewed snapshot after correcting source data rather than skipping journal events.
 Do not install other triggers on captured tables. Newly added triggers are detected
-and protected writes abort; their business effects must be reviewed separately.
+in the persistent main schema and protected writes abort; their business effects
+must be reviewed separately. Do not install connection-local TEMP business triggers
+either: persistent main triggers cannot fully inspect that private schema, so this
+restriction must be enforced by the application managing writer connections.
+
+Version 0.3.1 changes only parameter-expression semantics and table-kind inspection;
+an intact 0.3.0 source needs no further capture upgrade. The 0.2.0 upgrade command
+and the 0.1.0 fresh-snapshot procedure remain as described above.
 
 SQLite REAL zero is normalized to +0.0 in snapshots and captured images, including
 BLOB/untyped columns that retain negative zero. Audits intentionally consider these

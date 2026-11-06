@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.1 — 2026-11-07
+
+- Preserve SQLite parameter comparison semantics while retaining UTF-8/BOM-safe
+  binding. The internal CAST now has no expression affinity, preventing false
+  comparisons and unintended updates for numeric-looking TEXT parameters.
+- Inspect actual SQLite table kinds instead of searching CREATE TABLE text, so
+  ordinary identifiers and defaults containing `VIRTUAL TABLE` remain supported.
+- Verify failed capture upgrades leave definitions, journals and consumer state
+  intact on insufficient budgets, invalid events and unknown trigger definitions.
+- Clarify that connection-local TEMP business triggers are unsupported and cannot
+  be completely inspected by persistent main-schema capture triggers.
+- Capture trigger definitions are unchanged from 0.3.0; no additional upgrade is
+  required for an intact 0.3.0 source.
+
 ## 0.3.0 — 2026-11-07
 
 - Reject ordinary sync against a filtered target before any acknowledgement repair.

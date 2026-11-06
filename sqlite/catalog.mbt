@@ -4,9 +4,16 @@ pub fn Database::inspect_table(
   name : String,
 ) -> @cdc.Table raise {
   @cdc.check_name(name)
-  let definition = self.definition(name, "table")
-  if definition.to_upper().contains("VIRTUAL TABLE") {
-    raise StoreError("Virtual tables are not supported")
+  self.definition(name, "table") |> ignore
+  // Ask SQLite for the actual table kind: quoted names and string defaults may
+  // contain "VIRTUAL TABLE" without declaring a virtual table.
+  let kinds = self.query(
+    "SELECT type FROM pragma_table_list WHERE schema='main' AND name=?",
+    [Text(name)],
+    max_rows=2,
+  )
+  if kinds.length() != 1 || text(kinds[0].values[0]) != "table" {
+    raise StoreError("Virtual and shadow tables are not supported")
   }
   let rows = self.query(
     "PRAGMA table_xinfo(" + @cdc.quote_identifier(name) + ")",
