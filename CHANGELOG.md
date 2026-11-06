@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0 — 2026-11-06
+
+- Fix the acceptance-reported REAL fidelity failure: SQLite decimal formatting
+  changed values such as `1e300` and could make ordinary post-snapshot updates fail
+  strict before-image comparison.
+- Encode REAL as a signed integer significand and binary exponent. Core wire
+  encoding/decoding constructs IEEE-754 bits directly; persistent SQLite triggers
+  use eleven stages of exact power-of-two scaling, with factors derived by squaring.
+  Neither new path uses floating decimal formatting/parsing.
+- Retain read compatibility for legacy two-element decimal REAL values. Existing
+  capture triggers fail the new verifier and require a fresh capture generation,
+  snapshot, consumer and target. Already lost precision cannot be recovered by
+  decoding an old journal; see [the upgrade procedure](docs/OPERATIONS.md#upgrading-from-010-to-020).
+- Add bitwise REAL regression coverage for `±1e300`, finite exponent boundaries,
+  subnormals, signed zero in the core model, malformed pairs, JSON/JSONL snapshot
+  handoff and sustained update/delete/replay. Independent Python SQLite checks
+  compare 5,134 finite samples using their full binary64 bits and storage classes.
+- Keep the verified compiler baseline at MoonBit `v0.10.15+943464bfa` (2026-10-12).
+
 ## 0.1.0 — 2026-10-14
 
 - Persistent SQLite capture, consistent snapshots, retained consumer cursors.

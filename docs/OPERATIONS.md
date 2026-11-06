@@ -15,6 +15,60 @@ Never share a consumer between independently progressing targets.
 `status SOURCE` reports retained events and consumers; `target-status TARGET`
 reports target cursor, plan and row counts.
 
+## Upgrading from 0.1.0 to 0.2.0
+
+Version 0.1.0 encoded captured REAL values through SQLite decimal formatting.
+Some values, including `1e300`, were changed by that conversion. A target initialized
+from a directly read snapshot could then disagree with the rounded before-image
+of a later ordinary update. Version 0.2.0 replaces that path with exact binary
+significand/exponent encoding and keeps strict before-image checks.
+
+This changes the installed capture trigger SQL. The new verifier intentionally
+rejects old triggers; replacing just the executable is not a migration. Reading
+legacy two-element decimal REAL records is supported, but cannot recover precision
+already lost in old journals or projections. Do not suppress conflicts, compare
+with a tolerance, or advance a consumer over an unprocessed interval.
+
+Use a new capture generation and a fresh snapshot:
+
+1. Stop application writes and all sync workers. Take verified, consistent backups
+   of the old source and targets, retaining the old executable and consumer positions.
+   If 0.1.0 can still process pending changes safely, finish and audit them before
+   retiring that stream. If it encounters the reported conflict, retain the old
+   source, journal and target for investigation rather than skipping the event.
+2. Create a **new SQLite database** containing the intended user tables and their
+   current data from the authoritative source. Copy the required user schema,
+   indexes, constraints and business triggers deliberately; exclude every
+   `_mooncdc_*` metadata object and capture trigger. A whole-database backup alone
+   is not this new source because it retains the old capture objects. Verify user
+   data and application behavior in the new database. Preserve the original database
+   and backup; these steps do not require deleting either one.
+3. With 0.2.0, run `plan` and `install` against the new source. Configure every
+   application writer with `PRAGMA recursive_triggers=ON`. Generate any filtered
+   plan again from the new source schema, and review its selections and predicates.
+4. Run `bootstrap` with a **new consumer name and a new target path**. This creates
+   a fresh snapshot and cursor for the new source identity. Do not reuse old cursors,
+   append new events to an old journal, or reuse the damaged target.
+5. Run `sync` and `audit` (with `--plan` for a filtered target). Confirm matching
+   watermarks and data before switching the application and downstream consumers
+   to the new source/target generation. Keep old backups according to your retention
+   policy. Resume writes and continue normal sync only after the switch is verified.
+
+For example, after preparing and checking `source-v020.db` from user data:
+
+```sh
+mooncdc plan source-v020.db orders customers
+mooncdc install source-v020.db orders customers
+mooncdc bootstrap source-v020.db report-v020.db reporting-v020
+mooncdc sync source-v020.db report-v020.db reporting-v020
+mooncdc audit source-v020.db report-v020.db
+```
+
+If the old source was itself modified after incorrect data was fed back from a
+projection, recover authoritative user data from a trusted backup or application
+record first. New encoding cannot reconstruct historical values absent from the
+source and its backups.
+
 ## Offline transport
 
 ```sh
