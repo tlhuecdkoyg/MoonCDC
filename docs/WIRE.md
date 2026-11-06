@@ -1,4 +1,4 @@
-# Wire formats — MoonCDC 0.2.0
+# Wire formats — MoonCDC 0.3.0
 
 Cursors contain a `source` identity and nonnegative decimal-string `sequence`.
 Events contain positive decimal-string sequence, table, operation, before/after.
@@ -12,6 +12,7 @@ Rows are arrays in schema column order. Values use tagged arrays:
 | INTEGER | `["integer","9223372036854775807"]` |
 | REAL | `["real","1","-3"]` (0.125) |
 | TEXT | `["text","text"]` |
+| Raw captured UTF-8 TEXT | `["text-utf8","efbbbf74657874"]` |
 | BLOB | `["blob","00ff"]` |
 
 ## Exact REAL representation
@@ -36,8 +37,26 @@ exact power-of-two scaling. Factors are built by repeatedly squaring `2.0`, and
 the final integral significand is converted to an integer string. The trigger
 requires no connection-local custom functions, floating decimal formatting or
 floating decimal parsing. JSON/JSONL snapshot encoders use the same three-element
-value representation. At the database boundary the actual SQLite storage value
-is authoritative; SQLite can normalize negative zero to positive zero.
+value representation. At the SQLite capture boundary, REAL zero is explicitly
+normalized to positive zero by both snapshots and triggers, even when a BLOB or
+untyped column retains negative zero. Only nonzero finite REAL values have a
+bit-preservation guarantee across the database changefeed. Core wire encoding
+continues to preserve signed zero, and audits compare normalized database values.
+
+## TEXT bytes and compatibility
+
+From 0.3.0 source triggers and table snapshots use `text-utf8` with the hexadecimal
+bytes of TEXT before the binding can convert them to UTF-16. The decoder requires
+strict UTF-8 and preserves an initial U+FEFF, embedded NUL and supplementary
+characters. Invalid UTF-8 fails consumption/snapshot/audit before cursor advancement;
+it is never silently replaced. Arbitrary bytes belong in BLOB, not TEXT.
+Capture and projection databases must use SQLite UTF-8 encoding. Application
+TEXT parameters are bound as UTF-8 bytes with SQL CAST parameter expressions, so
+SQLite's UTF-16 BOM interpretation cannot strip a leading content character.
+
+The public model and batch exporters continue to emit decoded `text` strings;
+both tags are accepted. Old consumers cannot read raw `text-utf8` capture images.
+Upgrade workers together and run `upgrade-capture` for intact 0.2.0 sources.
 
 The decoder still accepts the 0.1.0 two-element `["real","decimal"]` form for
 reading existing files. That compatibility cannot recover digits already lost

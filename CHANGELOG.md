@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0 — 2026-11-07
+
+- Reject ordinary sync against a filtered target before any acknowledgement repair.
+- Preserve valid TEXT bytes, including leading BOM, using strict raw UTF-8 capture
+  decoding and UTF-8 parameter binding. Reject invalid TEXT rather than silently
+  transcoding it. Capture/projection databases now explicitly require UTF-8.
+- Abort source writes containing non-finite REALs or additional same-table business
+  triggers; refuse installing capture on tables with such triggers.
+- Add atomic, audited `upgrade-capture` for intact 0.2.0 trigger definitions.
+- Normalize database REAL zeros to positive zero in both snapshots and events;
+  explicitly limit database bit fidelity to nonzero finite REALs. Core wire retains -0.
+- Bound direct predicate encoding, including cyclic inputs, and preserve actual
+  diagnostic messages in CLI errors and operation reports.
+- Add concurrent writer/sync/pruning tests and protection/Unicode/upgrade regressions.
+
 ## 0.2.0 — 2026-11-06
 
 - Fix the acceptance-reported REAL fidelity failure: SQLite decimal formatting

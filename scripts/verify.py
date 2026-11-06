@@ -24,6 +24,7 @@ def main():
     # moon uses .exe for native executables on both Windows and Linux.
     run(sys.executable, "scripts/integration.py", executable)
     run(sys.executable, "scripts/real_regression.py", executable)
+    run(sys.executable, "scripts/concurrency_regression.py", executable)
 
 
 if __name__ == "__main__":

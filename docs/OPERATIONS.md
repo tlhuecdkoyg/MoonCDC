@@ -71,6 +71,33 @@ source and its backups.
 
 ## Offline transport
 
+### Upgrading intact 0.2.0 sources to 0.3.0
+
+Stop writers and workers, back up databases, then run
+`upgrade-capture SOURCE --limit 100000`. The limit must cover all retained events.
+The command acquires a write transaction, verifies exact known trigger definitions,
+table definitions, UTF-8 database encoding and retained journal decodability, then
+replaces triggers atomically. Source identity, event sequence, floor, journal and
+consumer acknowledgements remain unchanged; repeating the command is harmless.
+Use 0.3.0 for every worker after the upgrade, since new captured TEXT uses a new tag.
+
+Unknown or missing triggers, additional business triggers, schema drift and invalid
+retained events abort the upgrade without partial changes. This is not a repair
+tool for already lost precision, invalid text or arbitrary schema edits. Such
+sources require a reviewed migration/new snapshot from authoritative user data.
+Version 0.1.0 must still follow the fresh-generation migration above.
+
+Only UTF-8 databases with valid Unicode TEXT are supported. Invalid UTF-8 detected
+in historical/external writes stops snapshots, consumption and audits; use a new
+reviewed snapshot after correcting source data rather than skipping journal events.
+Do not install other triggers on captured tables. Newly added triggers are detected
+and protected writes abort; their business effects must be reviewed separately.
+
+SQLite REAL zero is normalized to +0.0 in snapshots and captured images, including
+BLOB/untyped columns that retain negative zero. Audits intentionally consider these
+zeros equivalent. If retaining the IEEE sign of zero is an application requirement,
+store that value as BLOB or an explicit domain representation rather than REAL.
+
 ```sh
 mooncdc snapshot source.db offline --format jsonl --output snapshot.jsonl
 mooncdc init target.db --format jsonl --input snapshot.jsonl
