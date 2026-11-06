@@ -93,7 +93,7 @@ pub fn Database::diagnose(
     error =>
       issues.push({
         "component": "source_metadata",
-        "error": error.to_string(),
+        "error": store_error_message(error),
         "action": "Restore intact metadata or initialize a new capture; do not guess a cursor.",
       })
   }
@@ -101,7 +101,7 @@ pub fn Database::diagnose(
     error => {
       issues.push({
         "component": "schema_manifest",
-        "error": error.to_string(),
+        "error": store_error_message(error),
         "action": "Restore the manifest from a trusted backup.",
       })
       []
@@ -150,7 +150,7 @@ pub fn Database::diagnose(
             issues.push({
               "component": "trigger",
               "name": name,
-              "error": error.to_string(),
+              "error": store_error_message(error),
               "action": "Stop consumers and reinitialize; recreating a trigger cannot recover missed writes.",
             })
         }
@@ -161,7 +161,7 @@ pub fn Database::diagnose(
         issues.push({
           "component": "table",
           "table": table.name,
-          "error": error.to_string(),
+          "error": store_error_message(error),
           "action": "Restore the table or start a new capture generation.",
         })
         { "table": table.name, "available": false }
@@ -201,7 +201,7 @@ pub fn Database::diagnose(
       error =>
         issues.push({
           "component": "journal_metadata",
-          "error": error.to_string(),
+          "error": store_error_message(error),
           "action": "Restore consistent source metadata from backup.",
         })
     }

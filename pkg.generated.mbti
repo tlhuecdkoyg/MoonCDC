@@ -282,6 +282,7 @@ pub(all) struct Table {
   name : String
   columns : Array[Column]
 } derive(Eq, @debug.Debug)
+pub fn Table::capture_select_sql(Self) -> String raise CdcError
 pub fn Table::column_index(Self, String) -> Int?
 pub fn Table::create_projection_sql(Self, String) -> String raise CdcError
 pub fn Table::delete_statement(Self, Row, target? : String) -> Statement raise CdcError
@@ -294,13 +295,13 @@ pub fn Table::key_predicate(Self, Row) -> Statement raise CdcError
 pub fn Table::lookup_statement(Self, Row, target? : String) -> Statement raise CdcError
 #deprecated
 pub fn Table::not_equal(Self, Self) -> Bool
-pub fn Table::row_expression(Self, String) -> String raise CdcError
+pub fn Table::row_expression(Self, String, legacy_v020? : Bool) -> String raise CdcError
 pub fn Table::select_sql(Self) -> String raise CdcError
 pub fn Table::signature(Self) -> String
 #deprecated
 pub fn Table::to_repr(Self) -> @debug.Repr
 pub fn Table::to_wire(Self) -> Json
-pub fn Table::trigger_sql(Self, Int, Operation) -> String raise CdcError
+pub fn Table::trigger_sql(Self, Int, Operation, legacy_v020? : Bool) -> String raise CdcError
 pub fn Table::update_statement(Self, Row, Row, target? : String) -> Statement raise CdcError
 pub fn Table::validate(Self) -> Unit raise CdcError
 

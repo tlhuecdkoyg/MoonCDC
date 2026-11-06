@@ -42,7 +42,7 @@ fn to_sqlite(value : @cdc.Value) -> @sqlite3.Value {
     Null => Null
     Integer(v) => Integer(v)
     Real(v) => Real(v)
-    Text(v) => Text(v)
+    Text(v) => Blob(@utf8.encode(v))
     Blob(v) => Blob(v)
   }
 }
@@ -65,7 +65,13 @@ fn Database::prepare(
   values : Array[@cdc.Value],
 ) -> @sqlite3.Statement raise {
   self.ensure_open()
-  let statement = self.connection.prepare(sql)
+  for value in values {
+    if value is Text(_) {
+      self.require_utf8()
+      break
+    }
+  }
+  let statement = self.connection.prepare(text_parameter_sql(sql, values))
   errdefer (statement.finalize() catch { _ => () })
   for index, value in values {
     value.validate()

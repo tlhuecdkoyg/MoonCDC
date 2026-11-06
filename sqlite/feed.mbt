@@ -22,7 +22,7 @@ pub fn Database::snapshot(
   let result : Array[@cdc.TableSnapshot] = []
   let mut remaining = max_rows
   for table in self.capture_tables() {
-    let rows = self.query(table.select_sql(), [], max_rows=remaining)
+    let rows = self.read_capture_rows(table, remaining)
     for row in rows {
       row.validate(table)
     }

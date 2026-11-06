@@ -63,6 +63,7 @@ pub fn Database::snapshot(Self, String, max_rows? : Int) -> @MoonCDC.Snapshot ra
 pub fn Database::source_cursor(Self) -> @MoonCDC.Cursor raise
 pub fn Database::status(Self) -> Json raise
 pub fn Database::uninstall_capture(Self, String) -> Unit raise
+pub fn Database::upgrade_capture(Self, max_events? : Int) -> Json raise
 pub fn Database::verify_capture(Self) -> Unit raise
 pub fn Database::verify_projection(Self) -> Unit raise
 

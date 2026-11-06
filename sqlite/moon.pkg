@@ -1,6 +1,7 @@
 import {
   "tlhuecdkoyg/MoonCDC" @cdc,
   "moonbit-community/sqlite3",
+  "moonbitlang/core/encoding/utf8",
 }
 
 supported_targets = "+native"

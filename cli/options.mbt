@@ -37,7 +37,7 @@ fn allowed_options(command : String) -> Array[String] {
     "export" => ["--output", "--format", "--limit"]
     "sync" => ["--limit", "--max-batches", "--plan", "--max-input"]
     "audit" => ["--max-rows", "--plan", "--max-input"]
-    "verify" => ["--limit"]
+    "verify" | "upgrade-capture" => ["--limit"]
     "prune-bounded" => ["--limit"]
     "make-plan" => ["--output"]
     "restore-consumer" => ["--input", "--max-input"]
@@ -71,6 +71,7 @@ pub fn parse_args(args : Array[String]) -> Options raise {
     | "diagnose"
     | "preview"
     | "make-plan" => 1
+    "upgrade-capture" => 1
     "snapshot"
     | "export"
     | "ack"
@@ -214,10 +215,11 @@ pub fn Options::encode_snapshot(
 ///|
 pub fn help() -> String {
   let text =
-    #|MoonCDC 0.2.0 - durable SQLite change capture
+    #|MoonCDC 0.3.0 - durable SQLite change capture
     #|
     #|mooncdc plan SOURCE TABLE...             Preview capture eligibility and SQL
     #|mooncdc install SOURCE TABLE...          Install persistent capture triggers
+    #|mooncdc upgrade-capture SOURCE           Validate and upgrade intact 0.2.0 triggers
     #|mooncdc status SOURCE                    Show watermarks and consumer lag
     #|mooncdc snapshot SOURCE CONSUMER          Register consumer and export snapshot
     #|mooncdc init TARGET --input FILE          Initialize a new target from snapshot

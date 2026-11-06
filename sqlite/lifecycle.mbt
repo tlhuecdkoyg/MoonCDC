@@ -187,7 +187,7 @@ pub fn Database::preview_batch(
       self.apply_event(@cdc.find_table(tables, event.table), event)
       None
     } catch {
-      error => Some(error.to_string())
+      error => Some(store_error_message(error))
     }
     if failure is Some(message) {
       return {

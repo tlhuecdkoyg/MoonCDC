@@ -72,6 +72,8 @@ pub fn Database::plan_capture(
       }
       seen[name.to_lower()] = true
       let table = self.inspect_table(name)
+      self.require_utf8()
+      self.require_source_triggers(name, [])
       let keys = table
         .key_indexes()
         .map(i => @cdc.quote_identifier(table.columns[i].name) + " IS NULL")
@@ -99,7 +101,7 @@ pub fn Database::plan_capture(
     } catch {
       error => {
         eligible = false
-        { "name": name, "eligible": false, "error": error.to_string() }
+        { "name": name, "eligible": false, "error": store_error_message(error) }
       }
     }
     details.push(detail)
@@ -127,6 +129,13 @@ pub fn Database::audit_journal(
   self.begin(false)
   defer self.rollback()
   self.verify_capture()
+  let report = self.check_journal(max_events)
+  self.commit()
+  report
+}
+
+///|
+fn Database::check_journal(self : Database, max_events : Int32) -> Json raise {
   let cursor = self.source_cursor()
   let floor = self.retention_floor()
   let rows = self.query(
@@ -169,7 +178,6 @@ pub fn Database::audit_journal(
   if previous != cursor.sequence {
     raise StoreError("Journal tail does not match high-water mark")
   }
-  self.commit()
   {
     "valid": true,
     "cursor": cursor.to_wire(),
@@ -210,8 +218,8 @@ pub fn audit_projection(
   let actual : Array[@cdc.TableSnapshot] = []
   let mut remaining = max_rows
   for table in tables {
-    let left = source.query(table.select_sql(), [], max_rows=remaining)
-    let right = target.query(table.select_sql(), [], max_rows=remaining)
+    let left = source.read_capture_rows(table, remaining)
+    let right = target.read_capture_rows(table, remaining)
     remaining -= left.length().max(right.length())
     expected.push({ schema: table, rows: left, })
     actual.push({ schema: table, rows: right, })

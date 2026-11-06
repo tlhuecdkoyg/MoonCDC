@@ -137,7 +137,12 @@ pub fn Table::update_statement(
 }
 
 ///|
-fn sqlite_wire_value(expression : String) -> String {
+fn sqlite_wire_value(expression : String, legacy_v020 : Bool) -> String {
+  let text = if legacy_v020 {
+    "json_array('text'," + expression + ")"
+  } else {
+    "json_array('text-utf8',hex(CAST(" + expression + " AS BLOB)))"
+  }
   "CASE typeof(" +
   expression +
   ") " +
@@ -148,9 +153,9 @@ fn sqlite_wire_value(expression : String) -> String {
   "WHEN 'real' THEN " +
   sqlite_real_wire(expression) +
   " " +
-  "WHEN 'text' THEN json_array('text'," +
-  expression +
-  ") " +
+  "WHEN 'text' THEN " +
+  text +
+  " " +
   "WHEN 'blob' THEN json_array('blob',hex(" +
   expression +
   ")) END"
@@ -160,6 +165,7 @@ fn sqlite_wire_value(expression : String) -> String {
 pub fn Table::row_expression(
   self : Table,
   prefix : String,
+  legacy_v020~ : Bool = false,
 ) -> String raise CdcError {
   self.validate()
   if prefix != "NEW" && prefix != "OLD" {
@@ -167,7 +173,7 @@ pub fn Table::row_expression(
   }
   let parts = self.columns.map(column => {
     "json(" +
-    sqlite_wire_value(prefix + "." + quote_identifier(column.name)) +
+    sqlite_wire_value(prefix + "." + quote_identifier(column.name), legacy_v020) +
     ")"
   })
   "json_array(" + parts.join(",") + ")"
@@ -189,18 +195,19 @@ pub fn Table::trigger_sql(
   self : Table,
   table_id : Int32,
   operation : Operation,
+  legacy_v020~ : Bool = false,
 ) -> String raise CdcError {
   self.validate()
   let name = trigger_name(table_id, operation)
   let before = if operation == Insert {
     "NULL"
   } else {
-    self.row_expression("OLD")
+    self.row_expression("OLD", legacy_v020~)
   }
   let after = if operation == Delete {
     "NULL"
   } else {
-    self.row_expression("NEW")
+    self.row_expression("NEW", legacy_v020~)
   }
   let key_checks : Array[String] = []
   if operation != Delete {
@@ -217,6 +224,43 @@ pub fn Table::trigger_sql(
     key_checks.join(" OR ") +
     "; "
   }
+  let supported = if legacy_v020 {
+    ""
+  } else {
+    let names = [Insert, Update, Delete].map(op => {
+      quote_literal(trigger_name(table_id, op))
+    })
+    let checks : Array[String] = []
+    for
+      prefix in (if operation == Insert {
+        ["NEW"]
+      } else if operation == Delete {
+        ["OLD"]
+      } else {
+        ["OLD", "NEW"]
+      }) {
+      for column in self.columns {
+        let value = prefix + "." + quote_identifier(column.name)
+        checks.push(
+          "(typeof(" +
+          value +
+          ")='real' AND (" +
+          value +
+          ">1.7976931348623157e308 OR " +
+          value +
+          "< -1.7976931348623157e308))",
+        )
+      }
+    }
+    "SELECT RAISE(ABORT,'MoonCDC: non-finite REAL is unsupported') WHERE " +
+    checks.join(" OR ") +
+    "; " +
+    "SELECT RAISE(ABORT,'MoonCDC: additional source triggers are unsupported') WHERE EXISTS(SELECT 1 FROM sqlite_schema WHERE type='trigger' AND tbl_name=" +
+    quote_literal(self.name) +
+    " AND name NOT IN(" +
+    names.join(",") +
+    ")); "
+  }
   "CREATE TRIGGER " +
   quote_identifier(name) +
   " AFTER " +
@@ -226,6 +270,7 @@ pub fn Table::trigger_sql(
   " BEGIN " +
   "SELECT RAISE(ABORT,'MoonCDC: enable recursive_triggers') WHERE (SELECT recursive_triggers FROM pragma_recursive_triggers)=0; " +
   key_guard +
+  supported +
   "INSERT INTO _mooncdc_events(table_name,operation,before_row,after_row) VALUES (" +
   quote_literal(self.name) +
   "," +

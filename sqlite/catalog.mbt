@@ -102,6 +102,43 @@ pub fn Database::capture_tables(self : Database) -> Array[@cdc.Table] raise {
 
 ///|
 pub fn Database::verify_capture(self : Database) -> Unit raise {
+  self.verify_capture_internal(false)
+}
+
+///|
+fn Database::require_utf8(self : Database) -> Unit raise {
+  if text(self.scalar("PRAGMA encoding", [])) != "UTF-8" {
+    raise StoreError("Capture and projection databases require UTF-8 encoding")
+  }
+}
+
+///|
+fn Database::require_source_triggers(
+  self : Database,
+  name : String,
+  allowed : Array[String],
+) -> Unit raise {
+  for
+    row in self.query(
+      "SELECT name FROM sqlite_schema WHERE type='trigger' AND tbl_name=?",
+      [Text(name)],
+    ) {
+    if !allowed.contains(text(row.values[0])) {
+      raise StoreError(
+        "Additional source triggers are unsupported on " +
+        name +
+        "; remove them only after reviewing their business effects",
+      )
+    }
+  }
+}
+
+///|
+fn Database::verify_capture_internal(
+  self : Database,
+  allow_legacy : Bool,
+) -> Unit raise {
+  self.require_utf8()
   self.source_cursor() |> ignore
   let rows = self.query(
     "SELECT id,name,definition,schema_json FROM _mooncdc_tables ORDER BY id",
@@ -125,11 +162,31 @@ pub fn Database::verify_capture(self : Database) -> Unit raise {
     if stored != self.inspect_table(name) {
       raise StoreError("Column metadata changed: " + name)
     }
+    self.require_source_triggers(
+      name,
+      [@cdc.Insert, @cdc.Update, @cdc.Delete].map(op => {
+        @cdc.trigger_name(id.to_int(), op)
+      }),
+    )
     for operation in [@cdc.Insert, @cdc.Update, @cdc.Delete] {
       let expected = stored.trigger_sql(id.to_int(), operation)
       let trigger = @cdc.trigger_name(id.to_int(), operation)
-      if self.definition(trigger, "trigger") != expected {
-        raise StoreError("Capture trigger changed: " + trigger)
+      let actual = self.definition(trigger, "trigger")
+      if actual != expected {
+        let legacy = stored.trigger_sql(
+          id.to_int(),
+          operation,
+          legacy_v020=true,
+        )
+        if actual == legacy {
+          if !allow_legacy {
+            raise StoreError(
+              "Capture requires upgrade-capture before consumption",
+            )
+          }
+        } else {
+          raise StoreError("Capture trigger changed: " + trigger)
+        }
       }
     }
   }
@@ -145,6 +202,7 @@ pub fn Database::install_capture(
   }
   self.begin(true)
   defer self.rollback()
+  self.require_utf8()
   let reserved = self.query(
     "SELECT name FROM sqlite_schema WHERE name GLOB '_mooncdc_*'",
     [],
@@ -162,6 +220,7 @@ pub fn Database::install_capture(
     }
     seen[name.to_lower()] = true
     let table = self.inspect_table(name)
+    self.require_source_triggers(name, [])
     let keys = table
       .key_indexes()
       .map(index => {

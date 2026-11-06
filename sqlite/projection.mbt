@@ -30,6 +30,7 @@ pub fn Database::projection_tables(self : Database) -> Array[@cdc.Table] raise {
 
 ///|
 pub fn Database::verify_projection(self : Database) -> Unit raise {
+  self.require_utf8()
   self.projection_cursor() |> ignore
   for table in self.projection_tables() {
     if self.definition(table.name, "table") !=
@@ -64,6 +65,7 @@ fn Database::initialize_projection_internal(
   snapshot.validate()
   self.begin(true)
   defer self.rollback()
+  self.require_utf8()
   if !self
     .query("SELECT name FROM sqlite_schema WHERE name GLOB '_mooncdc_*'", [])
     .is_empty() {
@@ -204,6 +206,11 @@ pub fn synchronize(
   }
   source.verify_capture()
   target.verify_projection()
+  if target.projection_plan() is Some(_) {
+    raise StoreError(
+      "Filtered targets require synchronize_filtered with their stored plan",
+    )
+  }
   if source.capture_tables() != target.projection_tables() {
     raise StoreError("Source and projection schema manifests differ")
   }

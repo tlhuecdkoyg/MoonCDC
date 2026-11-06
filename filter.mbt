@@ -115,6 +115,24 @@ pub fn Predicate::matches(
 
 ///|
 pub fn Predicate::to_wire(self : Predicate) -> Json raise CdcError {
+  self.write_wire(0)
+}
+
+///|
+fn Predicate::write_wire(
+  self : Predicate,
+  depth : Int32,
+) -> Json raise CdcError {
+  if depth > 32 {
+    raise Invalid("Filter nesting exceeds 32")
+  }
+  match self {
+    All(children) | Any(children) =>
+      if children.length() > 64 {
+        raise Invalid("Too many filter clauses")
+      }
+    _ => ()
+  }
   match self {
     Always => { "op": "always" }
     Equal(name, value) =>
@@ -132,14 +150,18 @@ pub fn Predicate::to_wire(self : Predicate) -> Json raise CdcError {
     All(children) =>
       {
         "op": "all",
-        "children": Json::array(children.map(child => child.to_wire())),
+        "children": Json::array(
+          children.map(child => child.write_wire(depth + 1)),
+        ),
       }
     Any(children) =>
       {
         "op": "any",
-        "children": Json::array(children.map(child => child.to_wire())),
+        "children": Json::array(
+          children.map(child => child.write_wire(depth + 1)),
+        ),
       }
-    Not(child) => { "op": "not", "child": child.to_wire() }
+    Not(child) => { "op": "not", "child": child.write_wire(depth + 1) }
   }
 }
 

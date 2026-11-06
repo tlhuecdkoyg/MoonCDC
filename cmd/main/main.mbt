@@ -4,6 +4,21 @@ suberror InputError {
 }
 
 ///|
+fn error_message(error : Error) -> String {
+  match error {
+    @cdc.Invalid(message)
+    | @cdc.Conflict(message)
+    | @cdc.Stale(message)
+    | @cdc.Corrupt(message) => message
+    @sqlite.StoreError(message) => message
+    @cli.UsageError(message) => message
+    InputError(message) => message
+    @driver.SqliteError(msg~, ..) => "SQLite: " + msg
+    _ => error.to_string()
+  }
+}
+
+///|
 async fn read_text(reader : &@io.Reader, limit : Int32) -> String {
   let chunks : Array[Bytes] = []
   let mut total = 0
@@ -94,7 +109,7 @@ async fn execute(options : @cli.Options) -> String {
   }
   match options.command {
     "help" => @cli.help()
-    "version" => "MoonCDC 0.2.0"
+    "version" => "MoonCDC 0.3.0"
     "project-snapshot" | "project-batch" => {
       let plan = plan.unwrap()
       let input = load(options.input.unwrap(), options.max_input)
@@ -279,6 +294,8 @@ async fn execute(options : @cli.Options) -> String {
           report.stringify()
         }
         "verify" => source.audit_journal(max_events=options.limit).stringify()
+        "upgrade-capture" =>
+          source.upgrade_capture(max_events=options.limit).stringify()
         _ => raise InputError("Unimplemented command")
       }
     }
@@ -298,7 +315,7 @@ async fn main {
     0
   } catch {
     error => {
-      @stdio.stderr.write("MoonCDC: \{error}\n")
+      @stdio.stderr.write("MoonCDC: " + error_message(error) + "\n")
       2
     }
   }

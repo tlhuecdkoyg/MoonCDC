@@ -32,6 +32,9 @@ pub fn Value::validate(self : Value) -> Unit raise CdcError {
   if self is Real(v) && (v - v).is_nan() {
     raise Invalid("Non-finite REAL is not supported by the wire protocol")
   }
+  if self is Text(value) {
+    validate_text(value)
+  }
 }
 
 ///|
@@ -137,6 +140,7 @@ pub fn Value::from_wire(value : Json) -> Value raise CdcError {
     ["real", String(significand), String(exponent)] =>
       Real(real_from_binary(significand, exponent))
     ["text", String(v)] => Text(v)
+    ["text-utf8", String(v)] => Text(decode_text(v))
     ["blob", String(v)] => Blob(decode_hex(v))
     _ => raise Invalid("Expected tagged SQLite value")
   }

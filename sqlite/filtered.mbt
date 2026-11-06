@@ -122,11 +122,7 @@ pub fn audit_filtered_projection(
   let mut source_remaining = max_rows
   let mut target_remaining = max_rows
   for rule in plan.rules {
-    let rows = source.query(
-      rule.source.select_sql(),
-      [],
-      max_rows=source_remaining,
-    )
+    let rows = source.read_capture_rows(rule.source, source_remaining)
     source_remaining -= rows.length()
     let schema = rule.output_schema()
     let projected : Array[@cdc.Row] = []
@@ -135,11 +131,7 @@ pub fn audit_filtered_projection(
         projected.push(value)
       }
     }
-    let stored = target.query(
-      schema.select_sql(),
-      [],
-      max_rows=target_remaining,
-    )
+    let stored = target.read_capture_rows(schema, target_remaining)
     target_remaining -= stored.length()
     expected.push({ schema, rows: projected, })
     actual.push({ schema, rows: stored, })
