@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.5 — 2026-11-07
+
+- Reject foreign-key DELETE action paths that return to a captured table with a
+  primary-key update. SQLite can move another row into a just-deleted key before
+  the outer AFTER DELETE event is recorded, causing a target uniqueness conflict.
+  The check follows DELETE CASCADE and SET NULL/DEFAULT, then subsequent UPDATE
+  actions, including uncaptured intermediate tables. Pure DELETE CASCADE and safe
+  non-key actions remain supported alongside the existing UPDATE cycle check.
+- Add persistent regression coverage for COMMIT lock failure, atomic initialization
+  failure, late-event rollback, corrected retries and already-applied replay.
+- Preserve the capture trigger format used by intact 0.3.2–0.3.4 sources.
+
 ## 0.3.4 — 2026-11-07
 
 - Detect and reject foreign-key ON UPDATE action cycles involving captured tables,

@@ -182,14 +182,23 @@ uncaptured tables. SQLite can execute a nested update before recording the outer
 AFTER event, producing an unreplayable before-image order. `plan`, `verify` and
 `diagnose` identify the cycle. This is a conservative schema check; current row
 contents and plans to keep keys immutable do not make a cyclic definition eligible.
-Acyclic cascades, NO ACTION/RESTRICT self-references and delete-only relations remain
-eligible subject to the other capture requirements.
+Acyclic cascades and NO ACTION/RESTRICT references remain eligible subject to the
+other capture requirements and the deletion-path check below.
 
-An existing source with such a cycle requires a reviewed application/schema design
+Version 0.3.5 also rejects a path from DELETE on a captured table back to an UPDATE
+of that table's primary key. It follows DELETE CASCADE as deletion, SET NULL/DEFAULT
+as update, then subsequent mutating ON UPDATE actions. An inner update can otherwise
+move a row into the just-deleted key before the outer DELETE is journaled, causing
+replay to hit a uniqueness conflict. This check includes uncaptured tables and
+considers the final foreign-key columns. Pure DELETE CASCADE, safe non-key
+self-reference actions, and capture subsets without the unsafe key return remain
+supported. `plan`, `verify` and `diagnose` identify unsupported return paths.
+
+An existing source with such a cycle or primary-key return path requires a reviewed application/schema design
 before it can be captured with this version. Preserve the old databases and logs;
 trigger upgrades do not repair already reordered events. After the source satisfies
 the capture requirements, initialize a new generation and targets from authoritative
-data if the old journal cannot replay. Intact compatible 0.3.2/0.3.3 sources continue
+data if the old journal cannot replay. Intact compatible 0.3.2–0.3.4 sources continue
 to use their existing trigger definitions.
 
 Every source writer connection requires both `PRAGMA recursive_triggers=ON` and

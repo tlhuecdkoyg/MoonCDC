@@ -215,7 +215,7 @@ pub fn Options::encode_snapshot(
 ///|
 pub fn help() -> String {
   let text =
-    #|MoonCDC 0.3.4 - durable SQLite change capture
+    #|MoonCDC 0.3.5 - durable SQLite change capture
     #|
     #|mooncdc plan SOURCE TABLE...             Preview capture eligibility and SQL
     #|mooncdc install SOURCE TABLE...          Install persistent capture triggers
