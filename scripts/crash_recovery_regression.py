@@ -31,17 +31,35 @@ def cursor(path):
         return db.execute("SELECT sequence FROM _mooncdc_projection").fetchone()[0]
 
 
-def commit_pending(path, table):
-    # Our SHARED blocker does not block another reader. BUSY here proves the
-    # writer has reached PENDING while waiting for the EXCLUSIVE commit lock.
+def probe_pending_child(path, table):
+    if table not in {"items", "_mooncdc_consumers"}:
+        print("Unexpected PENDING probe table", file=sys.stderr)
+        return 2
     try:
-        with closing(sqlite3.connect(path, timeout=0)) as probe:
+        uri = pathlib.Path(path).resolve().as_uri() + "?mode=ro"
+        with closing(sqlite3.connect(uri, uri=True, timeout=0)) as probe:
             probe.execute(f"SELECT * FROM {table} LIMIT 1").fetchone()
+        return 0
+    except Exception as error:
+        if isinstance(error, sqlite3.Error) and getattr(error, "sqlite_errorcode", 0) & 255 == sqlite3.SQLITE_BUSY:
+            return 10
+        print(f"PENDING probe failed: {error}", file=sys.stderr)
+        return 2
+
+
+def commit_pending(path, table):
+    # Unix VFS reuses an existing SHARED lock within the same PID, bypassing
+    # the PENDING-byte check. Use a separate reader process on every platform.
+    # Our blocker permits a fresh reader until the writer reaches PENDING.
+    result = subprocess.run(
+        [sys.executable, str(pathlib.Path(__file__).resolve()), "--probe-pending", str(path), table],
+        capture_output=True, text=True, encoding="utf-8", timeout=3,
+    )
+    if result.returncode == 0:
         return False
-    except sqlite3.OperationalError as error:
-        if error.sqlite_errorcode == sqlite3.SQLITE_BUSY:
-            return True
-        raise
+    if result.returncode == 10:
+        return True
+    raise AssertionError(("PENDING probe failed", result.returncode, result.stderr))
 
 
 def verify_prefix(source, target, expected):
@@ -127,4 +145,9 @@ def main():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--probe-pending":
+        if len(sys.argv) != 4:
+            print("Usage: --probe-pending DATABASE TABLE", file=sys.stderr)
+            raise SystemExit(2)
+        raise SystemExit(probe_pending_child(sys.argv[2], sys.argv[3]))
     main()

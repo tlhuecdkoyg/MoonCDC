@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.8 — 2026-11-07
+
+- Run the crash-recovery PENDING-lock probe in a separate Python process. Unix
+  SQLite can reuse SHARED locks inside the blocker process, hiding an external
+  writer's PENDING lock and causing a false CI failure. The independent probe
+  keeps both tested commit boundaries observable on Windows and Linux.
+- Preserve the 0.3.7 runtime behavior, public API and capture/wire formats.
+
 ## 0.3.7 — 2026-11-07
 
 - Increase the default JSONL line budget to 16,777,472 UTF-16 code units,
