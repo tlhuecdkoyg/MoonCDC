@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.6 — 2026-11-07
+
+- Read target before-images through the same strict raw UTF-8 decoder as snapshots
+  and audits. Invalid TEXT bytes can no longer be transcoded into an apparently
+  equal string, bypassing the conflict check and advancing the projection cursor.
+- Make DML and WITH `Database.query` calls atomic on row-budget and statement
+  errors, using an owned transaction or a nested savepoint. Finalize RETURNING
+  statements before committing or rolling back; preserve caller writes for normal
+  query failures and clean up an owned transaction after COMMIT BUSY.
+- Retain native semantics for PRAGMA settings, explicit transaction commands and
+  SQLite OR ROLLBACK. `execute` keeps its direct statement semantics, including
+  the possible successful prefix of OR FAIL. Unbound parameters still mean NULL.
+- Add regressions for invalid target UTF-8, filtered projections and Unicode keys,
+  RETURNING budgets, caller transactions/savepoints and a real target reader lock.
+- Capture trigger format and public API signatures remain unchanged.
 ## 0.3.5 — 2026-11-07
 
 - Reject foreign-key DELETE action paths that return to a captured table with a

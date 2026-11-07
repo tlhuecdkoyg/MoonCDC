@@ -95,6 +95,10 @@ pub fn Database::execute(
 }
 
 ///|
+/// Read result rows. DML and WITH queries use an owned transaction or an inner
+/// savepoint so query errors do not retain a partially applied statement.
+/// SQLite OR ROLLBACK can still end the caller's transaction. PRAGMA settings and
+/// explicit transaction commands retain their native SQLite semantics.
 pub fn Database::query(
   self : Database,
   sql : String,
@@ -106,6 +110,19 @@ pub fn Database::query(
   }
   let statement = self.prepare(sql, values)
   defer (statement.finalize() catch { _ => () })
+  let scope = self.begin_query_scope(sql)
+  errdefer {
+    statement.finalize() catch {
+      _ => ()
+    }
+    self.rollback_query_scope(scope) catch {
+      cleanup =>
+        raise StoreError(
+          "Query failed and its rollback could not complete: " +
+          store_error_message(cleanup),
+        )
+    }
+  }
   let result : Array[@cdc.Row] = []
   let width = statement.column_count()
   while statement.step() {
@@ -119,6 +136,10 @@ pub fn Database::query(
     }
     result.push({ values: cells, })
   }
+  // Closing a RETURNING statement can complete its writes. Do it while the
+  // scope is still active, before committing or releasing the savepoint.
+  statement.finalize()
+  self.commit_query_scope(scope)
   result
 }
 

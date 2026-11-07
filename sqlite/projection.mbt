@@ -117,8 +117,7 @@ fn Database::require_before(
   table : @cdc.Table,
   before : @cdc.Row,
 ) -> Unit raise {
-  let lookup = table.lookup_statement(before)
-  let rows = self.query(lookup.sql, lookup.parameters, max_rows=2)
+  let rows = self.read_capture_rows(table, 2, key=before)
   if rows.length() != 1 || rows[0] != before {
     raise StoreError("Projection diverged from before-image in " + table.name)
   }

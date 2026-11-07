@@ -8,9 +8,9 @@ MoonCDC 为已有 SQLite 表安装事务内的行级触发器，记录带类型�
 
 **0.2.0（2026-11-06）修复 REAL 保真问题。** 0.1.0 的 SQLite 十进制格式化会使部分数值（包括 `1e300`）发生舍入偏移，导致数值变化，或使快照后的正常更新触发 before-image 冲突。新版本以整数有效位和二进制指数精确传输 REAL，恢复前仍严格比较变更前镜像。已有 0.1.0 捕获与目标须按[升级步骤](docs/OPERATIONS.md#upgrading-from-010-to-020)重新初始化；升级不能恢复旧日志中已经丢失的精度。
 
-**当前版本为 0.3.5（2026-11-07）。** 外键结构检查覆盖更新动作环，以及删除动作返回捕获表并移动主键的路径；安装和消费前会拒绝这些不符合顺序重放要求的结构。本版另将提交锁冲突、初始化失败及批次迟发错误后的回滚和重试纳入持续集成。完整变更与验证记录见 [CHANGELOG](CHANGELOG.md) 和[自查报告](docs/REVIEW-20261107.md)。
+**当前版本为 0.3.6（2026-11-07）。** 目标 before-image 采用严格原始 UTF-8 解码，非法文本不会在转码后误通过冲突检查；库接口的写入型结果查询在超限或执行失败时回滚其语句变更。完整变更与验证记录见 [CHANGELOG](CHANGELOG.md) 和[自查报告](docs/REVIEW-20261107.md)。
 
-**升级要求：** 完整的 0.2.0/0.3.0/0.3.1 捕获须在维护窗口运行 `upgrade-capture`；符合当前结构要求的 0.3.2–0.3.4 捕获沿用现有触发器。更新时替换全部同步及日志清理进程，按[使用手册](docs/OPERATIONS.md)检查源结构和目标一致性。
+**升级要求：** 完整的 0.2.0/0.3.0/0.3.1 捕获须在维护窗口运行 `upgrade-capture`；符合当前结构要求的 0.3.2–0.3.5 捕获沿用现有触发器。更新时替换全部同步及日志清理进程，按[使用手册](docs/OPERATIONS.md)检查源结构和目标一致性。
 
 ## 适用场景
 
@@ -86,6 +86,8 @@ target.initialize_projection(source.snapshot("reporting"))
 ```
 
 安装与快照仅在初始化时执行；恢复直接调用 `synchronize`。完整 API 参见各包 `pkg.generated.mbti` 与 SQLite 测试。
+
+`Database::query` 对 `INSERT / UPDATE / DELETE / REPLACE / WITH` 查询提供语句级错误回滚，包括 `RETURNING` 行数超限；已有事务使用内部保存点。`execute` 保留 SQLite 原生语句行为，`OR FAIL` 可能保留成功前缀。显式 `OR ROLLBACK` 仍可终止调用者事务，PRAGMA 设置按 SQLite 规则处理。详见[库接口事务边界](docs/OPERATIONS.md#raw-sql-api-transactions)。
 
 ## 正确性边界
 

@@ -30,6 +30,17 @@ events without finishing the AUTOINCREMENT bookkeeping for that statement. Befor
 pruning, persist the observed high-water mark in main.sqlite_sequence inside the
 same write transaction so deleting the last retained row cannot reuse a sequence.
 
+Target before-images are selected by primary key through the same tagged raw UTF-8
+reader as snapshots and audits. SQLite text transcoding must not turn malformed
+target bytes into an apparently equal before-image. Detection aborts the target
+batch, including its already executed prefix and cursor update.
+
+Raw result queries beginning with INSERT/UPDATE/DELETE/REPLACE/WITH have an owned
+transaction or an inner savepoint. Finalize the result statement before committing
+or rolling back so RETURNING row-budget errors cannot commit hidden writes.
+Caller transactions retain earlier writes for ordinary query errors; explicit
+SQLite rollback conflict policies can still end that caller transaction.
+
 JSONL export provides at-least-once delivery. External consumers persist their
 effects before acknowledging a cursor. No cross-system exactly-once guarantee.
 

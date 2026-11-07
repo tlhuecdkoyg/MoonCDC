@@ -244,6 +244,12 @@ events prevent uninstall. User tables remain intact.
 
 ## Audits and budgets
 
+Before-image checks use the same strict raw UTF-8 tagged reads as snapshots and
+audits. Invalid target TEXT rejects preview/apply/sync before its cursor advances;
+any preceding events in that target batch roll back. Diagnose and repair or
+reinitialize a divergent target before retrying. A decoder error is not permission
+to skip an event.
+
 `verify SOURCE --limit N` audits ALL retained events and fails on exceeding N
 (CLI default 1,000). `diagnose SOURCE` collects schema/trigger problems and runs
 SQLite quick_check. `audit SOURCE TARGET` requires equal watermarks rather than
@@ -252,3 +258,26 @@ mislabeling lag as corruption; default row budget is 100,000.
 Preview takes a write lock, applies events and always rolls back. Actual apply
 validates again because another writer may change data after preview. Snapshots,
 audits and batches are bounded in-memory operations, not unlimited streaming backups.
+
+## Raw SQL API transactions
+
+`Database.query(sql, values, max_rows=...)` scopes INSERT, UPDATE, DELETE, REPLACE
+and WITH statements in a transaction. It opens its own transaction when none is
+active, otherwise uses a private nested savepoint. Result statements are finalized
+before the scope commits or rolls back. A row-limit or ordinary statement error
+undoes that query's writes, including RETURNING effects, while preserving earlier
+writes in a caller-owned transaction. A successful inner query still belongs to
+the caller's transaction and can be rolled back by it. If an owned COMMIT fails
+with a lock conflict, the owned transaction is rolled back before the error returns.
+
+The first-token check skips SQL whitespace, BOM, comments and leading semicolons.
+WITH SELECT queries are conservatively scoped too. SELECT, EXPLAIN, PRAGMA and
+explicit transaction commands retain their native execution behavior. This is a
+DML result-query guarantee; PRAGMA setting side effects are not covered. SQLite's
+explicit OR ROLLBACK conflict policy may end the entire caller transaction.
+
+`Database.execute` remains a direct SQLite statement operation: OR FAIL can retain
+a successful prefix, as described by SQLite. Parameter binding also follows SQLite:
+unbound slots are NULL. Provide every intended parameter explicitly. Raw `query`
+reads use the binding's ordinary value conversion; CDC snapshot, audit and
+before-image paths use strict raw UTF-8 decoding for valid Unicode TEXT.
