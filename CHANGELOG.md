@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.4 — 2026-11-07
+
+- Detect and reject foreign-key ON UPDATE action cycles involving captured tables,
+  including self-reference and paths through uncaptured tables. Reentrant actions
+  can emit before-images ahead of the outer update, making the journal unreplayable.
+  Installation, plans, validation and diagnostics now state this conservative
+  schema boundary. Acyclic cascades and nonmutating update actions remain supported.
+- Report every unsupported business trigger in diagnostics, alongside missing or
+  changed capture triggers, instead of incorrectly reporting a healthy source.
+- List legal `sqliteX`-style table names and match the reserved MoonCDC namespace
+  without case sensitivity when checking installation and initialization conflicts.
+- Capture trigger format remains compatible with intact 0.3.2/0.3.3 sources.
+
 ## 0.3.3 — 2026-11-07
 
 - Read source watermarks from both the retained journal and main.sqlite_sequence:

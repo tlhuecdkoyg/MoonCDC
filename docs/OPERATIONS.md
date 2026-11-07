@@ -176,6 +176,22 @@ do not transform twice. Those output files alone do not carry a durable rule loc
 
 ## Recovery
 
+Version 0.3.4 rejects table-level ON UPDATE CASCADE/SET NULL/SET DEFAULT cycles
+that return to a captured table, including self-reference and paths through
+uncaptured tables. SQLite can execute a nested update before recording the outer
+AFTER event, producing an unreplayable before-image order. `plan`, `verify` and
+`diagnose` identify the cycle. This is a conservative schema check; current row
+contents and plans to keep keys immutable do not make a cyclic definition eligible.
+Acyclic cascades, NO ACTION/RESTRICT self-references and delete-only relations remain
+eligible subject to the other capture requirements.
+
+An existing source with such a cycle requires a reviewed application/schema design
+before it can be captured with this version. Preserve the old databases and logs;
+trigger upgrades do not repair already reordered events. After the source satisfies
+the capture requirements, initialize a new generation and targets from authoritative
+data if the old journal cannot replay. Intact compatible 0.3.2/0.3.3 sources continue
+to use their existing trigger definitions.
+
 Every source writer connection requires both `PRAGMA recursive_triggers=ON` and
 `PRAGMA trusted_schema=ON`. The latter permits the trigger's table-valued PRAGMA
 guard; with `trusted_schema=OFF`, SQLite rejects the write as an unsafe use of a

@@ -65,7 +65,7 @@ pub fn Database::inspect_table(
 pub fn Database::list_tables(self : Database) -> Array[String] raise {
   self
   .query(
-    "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT GLOB '_mooncdc_*' ORDER BY name",
+    "SELECT name FROM main.sqlite_schema WHERE type='table' AND lower(name) NOT GLOB 'sqlite_*' AND lower(name) NOT GLOB '_mooncdc_*' ORDER BY name",
     [],
   )
   .map(row => text(row.values[0]))
@@ -182,6 +182,7 @@ fn Database::verify_capture_internal(
   if rows.is_empty() {
     raise StoreError("No captured tables")
   }
+  self.require_supported_cascades(rows.map(row => text(row.values[1])))
   for row in rows {
     let id = integer(row.values[0])
     if id <= 0L || id > 2147483647L {
@@ -245,7 +246,7 @@ pub fn Database::install_capture(
   self.require_main_namespace(names~)
   self.require_utf8()
   let reserved = self.query(
-    "SELECT name FROM sqlite_schema WHERE name GLOB '_mooncdc_*'",
+    "SELECT name FROM main.sqlite_schema WHERE lower(name) GLOB '_mooncdc_*'",
     [],
   )
   if !reserved.is_empty() {
@@ -281,6 +282,7 @@ pub fn Database::install_capture(
     }
     tables.push(table)
   }
+  self.require_supported_cascades(names)
   for sql in @cdc.source_schema_sql() {
     self.execute(sql, []) |> ignore
   }

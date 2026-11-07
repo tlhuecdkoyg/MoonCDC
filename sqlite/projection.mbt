@@ -73,7 +73,10 @@ fn Database::initialize_projection_internal(
   )
   self.require_utf8()
   if !self
-    .query("SELECT name FROM sqlite_schema WHERE name GLOB '_mooncdc_*'", [])
+    .query(
+      "SELECT name FROM main.sqlite_schema WHERE lower(name) GLOB '_mooncdc_*'",
+      [],
+    )
     .is_empty() {
     raise StoreError(
       "Target has MoonCDC metadata; initialization never overwrites it",

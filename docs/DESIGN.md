@@ -40,6 +40,14 @@ from row triggers. Intermediate target batches need not reproduce cross-row
 source transaction atomicity. The product is a changefeed and eventual projection,
 not a transparent database replication system.
 
+Foreign-key ON UPDATE CASCADE, SET NULL and SET DEFAULT actions must not form a
+table-level cycle that returns to a captured table. A nested action can update the
+outer row before its AFTER trigger records the outer change, breaking sequential
+before-image replay. The check is conservative, includes uncaptured intermediate
+tables, and depends on schema rather than the current row contents. NO ACTION and
+RESTRICT update actions, acyclic cascades and delete-only cycles are not rejected
+by this rule. Installation and each capture verification enforce this boundary.
+
 DDL changes require explicit reconfiguration and reinitialization. Unknown schema
 changes, missing capture triggers, invalid cursors and truncated logs fail closed.
 No bidirectional merge, WAL decoding, virtual tables, hidden-rowid keys, arbitrary

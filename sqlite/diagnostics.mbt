@@ -107,6 +107,14 @@ pub fn Database::diagnose(
       []
     }
   }
+  self.require_supported_cascades(tables.map(table => table.name)) catch {
+    error =>
+      issues.push({
+        "component": "foreign_key_actions",
+        "error": store_error_message(error),
+        "action": "Review ON UPDATE action cycles involving captured tables. Use an acyclic action graph or NO ACTION/RESTRICT, then reinitialize if affected writes may already have occurred.",
+      })
+  }
   for table in tables {
     let detail : Json = try {
       let actual = self.inspect_table(table.name)
@@ -135,6 +143,25 @@ pub fn Database::diagnose(
           "error": "Original CREATE TABLE statement changed",
           "action": "Reinitialize instead of editing the stored definition.",
         })
+      }
+      let capture_triggers = [@cdc.Insert, @cdc.Update, @cdc.Delete].map(op => {
+        @cdc.trigger_name(id, op)
+      })
+      for
+        row in self.query(
+          "SELECT name FROM main.sqlite_schema WHERE type='trigger' AND tbl_name=? ORDER BY name",
+          [Text(table.name)],
+        ) {
+        let name = text(row.values[0])
+        if !capture_triggers.contains(name) {
+          issues.push({
+            "component": "unsupported_trigger",
+            "table": table.name,
+            "name": name,
+            "error": "Additional source triggers are unsupported on captured tables",
+            "action": "Stop writers and consumers; review business effects before removing this trigger. Reinitialize if untracked writes may have occurred.",
+          })
+        }
       }
       for operation in [@cdc.Insert, @cdc.Update, @cdc.Delete] {
         let name = @cdc.trigger_name(id, operation)

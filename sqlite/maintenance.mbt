@@ -74,6 +74,7 @@ pub fn Database::plan_capture(
       let table = self.inspect_table(name)
       self.require_utf8()
       self.require_source_triggers(name, [])
+      self.require_supported_cascades([name])
       let keys = table
         .key_indexes()
         .map(i => @cdc.quote_identifier(table.columns[i].name) + " IS NULL")
@@ -107,7 +108,10 @@ pub fn Database::plan_capture(
     details.push(detail)
   }
   let occupied = !self
-    .query("SELECT name FROM sqlite_schema WHERE name GLOB '_mooncdc_*'", [])
+    .query(
+      "SELECT name FROM main.sqlite_schema WHERE lower(name) GLOB '_mooncdc_*'",
+      [],
+    )
     .is_empty()
   {
     "eligible": eligible && !occupied,
