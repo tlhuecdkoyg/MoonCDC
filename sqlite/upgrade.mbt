@@ -1,5 +1,5 @@
 ///|
-/// Upgrade intact 0.2.0 triggers in one write transaction. Existing journals,
+/// Upgrade intact 0.2.0 or 0.3.0/0.3.1 triggers in one write transaction. Existing journals,
 /// source identity, retention floor and consumer cursors remain unchanged.
 /// Unknown definitions or undecodable retained events prevent any mutation.
 pub fn Database::upgrade_capture(

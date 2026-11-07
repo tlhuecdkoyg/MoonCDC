@@ -100,6 +100,33 @@ Version 0.3.1 changes only parameter-expression semantics and table-kind inspect
 an intact 0.3.0 source needs no further capture upgrade. The 0.2.0 upgrade command
 and the 0.1.0 fresh-snapshot procedure remain as described above.
 
+### Upgrading intact 0.2.0/0.3.0/0.3.1 sources to 0.3.2
+
+SQLite builds before 3.48.0 normally limit SQL functions to 127 arguments. Earlier
+MoonCDC versions generated a 128-argument `json_array` for 128-column tables;
+installing it with the bundled 3.49.1 engine could make an older writer reject the
+database schema, including statements for other tables. Version 0.3.2 appends the
+last cell with `json_insert`, preserving the same wire data without exceeding 127
+arguments. See [SQLite function limits](https://www.sqlite.org/limits.html#max_function_arg).
+
+Stop writers/workers and back up the database, then use the 0.3.2 CLI to run
+`upgrade-capture SOURCE --limit 100000`, with a limit covering all retained events.
+Known 0.2.0/0.3.0/0.3.1 triggers are replaced atomically, preserving identity,
+journal, retention and consumer state. All widths receive a revised
+`pragma_recursive_triggers()` guard: function-call syntax prevents an ordinary
+table of that name from spoofing the PRAGMA value and bypassing REPLACE deletion
+capture. A collision fails the write instead. An intact upgraded capture does not need a fresh snapshot. Never
+drop a capture trigger manually to work around a schema error.
+
+Library users must remove TEMP tables/views that shadow captured or projected
+tables or MoonCDC metadata before CDC operations. These operations now reject
+shadowing rather than accidentally reading or updating a connection-local object.
+The upgrade cannot repair a target that previously acknowledged writes to TEMP
+objects or a history that already missed implicit deletes. After upgrading, catch
+up and audit the persistent source/target. Reinitialize a divergent target from an
+authoritative snapshot with a new consumer; never advance or rewind cursors as a
+substitute for rebuilding missing data.
+
 SQLite REAL zero is normalized to +0.0 in snapshots and captured images, including
 BLOB/untyped columns that retain negative zero. Audits intentionally consider these
 zeros equivalent. If retaining the IEEE sign of zero is an application requirement,

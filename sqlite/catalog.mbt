@@ -4,15 +4,16 @@ pub fn Database::inspect_table(
   name : String,
 ) -> @cdc.Table raise {
   @cdc.check_name(name)
+  self.require_main_namespace(names=[name])
   self.definition(name, "table") |> ignore
   // Ask SQLite for the actual table kind: quoted names and string defaults may
   // contain "VIRTUAL TABLE" without declaring a virtual table.
   let kinds = self.query(
-    "SELECT type FROM pragma_table_list WHERE schema='main' AND name=?",
-    [Text(name)],
+    "PRAGMA main.table_list(" + @cdc.quote_literal(name) + ")",
+    [],
     max_rows=2,
   )
-  if kinds.length() != 1 || text(kinds[0].values[0]) != "table" {
+  if kinds.length() != 1 || text(kinds[0].values[2]) != "table" {
     raise StoreError("Virtual and shadow tables are not supported")
   }
   let rows = self.query(
@@ -72,6 +73,7 @@ pub fn Database::list_tables(self : Database) -> Array[String] raise {
 
 ///|
 pub fn Database::source_cursor(self : Database) -> @cdc.Cursor raise {
+  self.require_main_namespace()
   let rows = self.query(
     "SELECT format,source_id,floor FROM _mooncdc_meta WHERE singleton=1",
     [],
@@ -97,11 +99,13 @@ pub fn Database::source_cursor(self : Database) -> @cdc.Cursor raise {
 
 ///|
 pub fn Database::retention_floor(self : Database) -> Int64 raise {
+  self.require_main_namespace()
   integer(self.scalar("SELECT floor FROM _mooncdc_meta WHERE singleton=1", []))
 }
 
 ///|
 pub fn Database::capture_tables(self : Database) -> Array[@cdc.Table] raise {
+  self.require_main_namespace()
   self
   .query("SELECT schema_json FROM _mooncdc_tables ORDER BY id", [])
   .map(row => @cdc.Table::from_wire(@cdc.parse_json(text(row.values[0]))))
@@ -145,6 +149,7 @@ fn Database::verify_capture_internal(
   self : Database,
   allow_legacy : Bool,
 ) -> Unit raise {
+  self.require_main_namespace()
   self.require_utf8()
   self.source_cursor() |> ignore
   let rows = self.query(
@@ -185,7 +190,12 @@ fn Database::verify_capture_internal(
           operation,
           legacy_v020=true,
         )
-        if actual == legacy {
+        let legacy_wide = stored.trigger_sql(
+          id.to_int(),
+          operation,
+          legacy_v031=true,
+        )
+        if actual == legacy || actual == legacy_wide {
           if !allow_legacy {
             raise StoreError(
               "Capture requires upgrade-capture before consumption",
@@ -209,6 +219,7 @@ pub fn Database::install_capture(
   }
   self.begin(true)
   defer self.rollback()
+  self.require_main_namespace(names~)
   self.require_utf8()
   let reserved = self.query(
     "SELECT name FROM sqlite_schema WHERE name GLOB '_mooncdc_*'",

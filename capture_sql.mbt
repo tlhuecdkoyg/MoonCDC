@@ -9,9 +9,9 @@ pub fn Table::capture_select_sql(self : Table) -> String raise CdcError {
   let keys = self
     .key_indexes()
     .map(index => quote_identifier(self.columns[index].name))
-  "SELECT json_array(" +
-  values.join(",") +
-  ") FROM " +
+  "SELECT " +
+  sqlite_row_array(values, false) +
+  " FROM " +
   quote_identifier(self.name) +
   " ORDER BY " +
   keys.join(",")

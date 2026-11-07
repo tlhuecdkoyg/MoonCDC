@@ -25,6 +25,7 @@ def main():
     run(sys.executable, "scripts/integration.py", executable)
     run(sys.executable, "scripts/real_regression.py", executable)
     run(sys.executable, "scripts/concurrency_regression.py", executable)
+    run(sys.executable, "scripts/compatibility_regression.py")
 
 
 if __name__ == "__main__":

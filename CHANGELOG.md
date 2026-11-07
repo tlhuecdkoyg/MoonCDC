@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.2 — 2026-11-07
+
+- Reject TEMP tables/views that shadow capture/projection objects, preventing
+  writes or reads from silently addressing a connection-local object while
+  durable cursors advance for the main database.
+- Use function-call syntax for the recursive-triggers PRAGMA so an ordinary
+  table cannot spoof its value and bypass implicit-delete protection for REPLACE.
+- Keep 128-column capture JSON expressions within the historical SQLite function
+  argument cap of 127. Add an external-writer regression that explicitly enforces
+  this cap, including quoted/Unicode identifiers and extreme Int64 values.
+- Extend atomic `upgrade-capture` to known 0.3.0/0.3.1 triggers, preserving
+  retained events, source identity and consumer cursors. All older captures need
+  this upgrade for the revised recursive-triggers guard.
+- Reject empty, oversized and duplicate persisted schema manifests rather than
+  reporting invalid empty projections as healthy.
+
 ## 0.3.1 — 2026-11-07
 
 - Preserve SQLite parameter comparison semantics while retaining UTF-8/BOM-safe

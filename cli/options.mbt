@@ -215,11 +215,11 @@ pub fn Options::encode_snapshot(
 ///|
 pub fn help() -> String {
   let text =
-    #|MoonCDC 0.3.1 - durable SQLite change capture
+    #|MoonCDC 0.3.2 - durable SQLite change capture
     #|
     #|mooncdc plan SOURCE TABLE...             Preview capture eligibility and SQL
     #|mooncdc install SOURCE TABLE...          Install persistent capture triggers
-    #|mooncdc upgrade-capture SOURCE           Validate and upgrade intact 0.2.0 triggers
+    #|mooncdc upgrade-capture SOURCE           Validate and upgrade known legacy capture triggers
     #|mooncdc status SOURCE                    Show watermarks and consumer lag
     #|mooncdc snapshot SOURCE CONSUMER          Register consumer and export snapshot
     #|mooncdc init TARGET --input FILE          Initialize a new target from snapshot

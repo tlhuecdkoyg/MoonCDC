@@ -1,5 +1,6 @@
 ///|
 pub fn Database::projection_plan(self : Database) -> @cdc.ProjectionPlan? raise {
+  self.require_main_namespace()
   match
     self.scalar("SELECT plan_json FROM _mooncdc_projection WHERE singleton=1", []) {
     Null => None

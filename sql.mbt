@@ -162,10 +162,35 @@ fn sqlite_wire_value(expression : String, legacy_v020 : Bool) -> String {
 }
 
 ///|
+// Keep persistent triggers readable by SQLite versions whose default function
+// argument limit is 127. Supported rows have at most 128 cells.
+fn sqlite_row_array(parts : Array[String], legacy_wide : Bool) -> String {
+  if parts.length() <= 127 || legacy_wide {
+    "json_array(" + parts.join(",") + ")"
+  } else {
+    "json_insert(json_array(" +
+    parts.exact_view(end=127).to_owned().join(",") +
+    "),'$[#]'," +
+    parts[127] +
+    ")"
+  }
+}
+
+///|
 pub fn Table::row_expression(
   self : Table,
   prefix : String,
   legacy_v020~ : Bool = false,
+) -> String raise CdcError {
+  self.row_expression_internal(prefix, legacy_v020, legacy_v020)
+}
+
+///|
+fn Table::row_expression_internal(
+  self : Table,
+  prefix : String,
+  legacy_v020 : Bool,
+  legacy_wide : Bool,
 ) -> String raise CdcError {
   self.validate()
   if prefix != "NEW" && prefix != "OLD" {
@@ -176,7 +201,7 @@ pub fn Table::row_expression(
     sqlite_wire_value(prefix + "." + quote_identifier(column.name), legacy_v020) +
     ")"
   })
-  "json_array(" + parts.join(",") + ")"
+  sqlite_row_array(parts, legacy_wide)
 }
 
 ///|
@@ -191,23 +216,29 @@ pub fn trigger_name(
 }
 
 ///|
+/// Generate the current capture definition. Legacy flags only reconstruct known
+/// definitions for audited upgrades; do not use them to install new capture.
 pub fn Table::trigger_sql(
   self : Table,
   table_id : Int32,
   operation : Operation,
   legacy_v020~ : Bool = false,
+  legacy_v031~ : Bool = false,
 ) -> String raise CdcError {
   self.validate()
+  if legacy_v020 && legacy_v031 {
+    raise Invalid("Choose one legacy capture format")
+  }
   let name = trigger_name(table_id, operation)
   let before = if operation == Insert {
     "NULL"
   } else {
-    self.row_expression("OLD", legacy_v020~)
+    self.row_expression_internal("OLD", legacy_v020, legacy_v020 || legacy_v031)
   }
   let after = if operation == Delete {
     "NULL"
   } else {
-    self.row_expression("NEW", legacy_v020~)
+    self.row_expression_internal("NEW", legacy_v020, legacy_v020 || legacy_v031)
   }
   let key_checks : Array[String] = []
   if operation != Delete {
@@ -261,6 +292,13 @@ pub fn Table::trigger_sql(
     names.join(",") +
     ")); "
   }
+  let recursive_pragma = if legacy_v020 || legacy_v031 {
+    "pragma_recursive_triggers"
+  } else {
+    // Function-call syntax cannot resolve to an ordinary table/view with the
+    // same name. Such a collision fails rather than spoofing the PRAGMA value.
+    "pragma_recursive_triggers()"
+  }
   "CREATE TRIGGER " +
   quote_identifier(name) +
   " AFTER " +
@@ -268,7 +306,9 @@ pub fn Table::trigger_sql(
   " ON " +
   quote_identifier(self.name) +
   " BEGIN " +
-  "SELECT RAISE(ABORT,'MoonCDC: enable recursive_triggers') WHERE (SELECT recursive_triggers FROM pragma_recursive_triggers)=0; " +
+  "SELECT RAISE(ABORT,'MoonCDC: enable recursive_triggers') WHERE (SELECT recursive_triggers FROM " +
+  recursive_pragma +
+  ")=0; " +
   key_guard +
   supported +
   "INSERT INTO _mooncdc_events(table_name,operation,before_row,after_row) VALUES (" +

@@ -41,6 +41,12 @@ remote databases, or automatic schema migration in version 0.1.
 
 ## Validation gates
 
+CDC operations reject TEMP tables/views that would shadow captured/projected
+main objects or reserved metadata. Internal PRAGMA reads that enforce capture
+safety must use function-call syntax; a regular table cannot stand in for a
+table-valued PRAGMA. Source connections without recursive triggers remain
+unsupported, and a namespace collision must fail before any source write commits.
+
 Independent Python sqlite3 writes must be captured by MoonBit. Tests cover rollback,
 external connections, snapshot handoff, deletion, key changes, NULL and BLOB data,
 replay, target divergence, schema drift, retention and stale consumer cursors.

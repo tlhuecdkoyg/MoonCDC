@@ -1,5 +1,6 @@
 ///|
 pub fn Database::projection_cursor(self : Database) -> @cdc.Cursor raise {
+  self.require_main_namespace()
   let rows = self.query(
     "SELECT format,source_id,sequence FROM _mooncdc_projection WHERE singleton=1",
     [],
@@ -18,6 +19,7 @@ pub fn Database::projection_cursor(self : Database) -> @cdc.Cursor raise {
 
 ///|
 pub fn Database::projection_tables(self : Database) -> Array[@cdc.Table] raise {
+  self.require_main_namespace()
   @cdc.schemas_from_wire(
     text(
       self.scalar(
@@ -30,6 +32,7 @@ pub fn Database::projection_tables(self : Database) -> Array[@cdc.Table] raise {
 
 ///|
 pub fn Database::verify_projection(self : Database) -> Unit raise {
+  self.require_main_namespace()
   self.require_utf8()
   self.projection_cursor() |> ignore
   for table in self.projection_tables() {
@@ -65,6 +68,9 @@ fn Database::initialize_projection_internal(
   snapshot.validate()
   self.begin(true)
   defer self.rollback()
+  self.require_main_namespace(
+    names=snapshot.tables.map(table => table.schema.name),
+  )
   self.require_utf8()
   if !self
     .query("SELECT name FROM sqlite_schema WHERE name GLOB '_mooncdc_*'", [])

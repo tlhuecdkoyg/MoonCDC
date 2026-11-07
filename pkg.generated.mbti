@@ -301,7 +301,7 @@ pub fn Table::signature(Self) -> String
 #deprecated
 pub fn Table::to_repr(Self) -> @debug.Repr
 pub fn Table::to_wire(Self) -> Json
-pub fn Table::trigger_sql(Self, Int, Operation, legacy_v020? : Bool) -> String raise CdcError
+pub fn Table::trigger_sql(Self, Int, Operation, legacy_v020? : Bool, legacy_v031? : Bool) -> String raise CdcError
 pub fn Table::update_statement(Self, Row, Row, target? : String) -> Statement raise CdcError
 pub fn Table::validate(Self) -> Unit raise CdcError
 

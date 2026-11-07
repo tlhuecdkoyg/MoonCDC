@@ -87,7 +87,21 @@ pub fn schemas_to_wire(tables : Array[Table]) -> String {
 ///|
 pub fn schemas_from_wire(text : String) -> Array[Table] raise CdcError {
   match parse_json(text) {
-    Array(tables) => tables.map(table => Table::from_wire(table))
+    Array(values) => {
+      if values.is_empty() || values.length() > 128 {
+        raise Invalid("Schema manifest must contain 1..128 tables")
+      }
+      let tables = values.map(table => Table::from_wire(table))
+      let names : Map[String, Bool] = Map([])
+      for table in tables {
+        let name = table.name.to_lower()
+        if names.contains(name) {
+          raise Invalid("Duplicate schema manifest table")
+        }
+        names[name] = true
+      }
+      tables
+    }
     _ => raise Invalid("Expected schema array")
   }
 }

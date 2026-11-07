@@ -127,6 +127,7 @@ pub fn Database::consumer_cursor(
   self : Database,
   name : String,
 ) -> @cdc.Cursor raise {
+  self.require_main_namespace()
   let rows = self.query(
     "SELECT sequence,paused FROM _mooncdc_consumers WHERE name=?",
     [Text(name)],
@@ -182,6 +183,7 @@ pub fn Database::pause_consumer(
   name : String,
   paused : Bool,
 ) -> Unit raise {
+  self.require_main_namespace()
   let count = self.execute(
     "UPDATE _mooncdc_consumers SET paused=? WHERE name=?",
     [Integer(if paused { 1L } else { 0L }), Text(name)],
@@ -193,6 +195,7 @@ pub fn Database::pause_consumer(
 
 ///|
 pub fn Database::drop_consumer(self : Database, name : String) -> Unit raise {
+  self.require_main_namespace()
   let count = self.execute("DELETE FROM _mooncdc_consumers WHERE name=?", [
     Text(name),
   ])
