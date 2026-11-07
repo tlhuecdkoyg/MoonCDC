@@ -32,7 +32,8 @@ pub struct BatchDecoder {
   max_line_units : Int32
   max_total_units : Int32
   mut total : Int32
-  mut pending : String
+  mut pending : StringBuilder
+  mut pending_units : Int32
   mut start : Cursor?
   mut end : Cursor?
   mut high_water : Int64
@@ -55,7 +56,8 @@ pub fn BatchDecoder::new(
     max_line_units,
     max_total_units,
     total: 0,
-    pending: "",
+    pending: StringBuilder(),
+    pending_units: 0,
     start: None,
     end: None,
     high_water: 0L,
@@ -153,18 +155,29 @@ pub fn BatchDecoder::feed(
     raise Invalid("JSONL input limit exceeded")
   }
   self.total += chunk.length()
-  let combined = self.pending + chunk
   let mut offset = 0
-  for index in 0..<combined.length() {
-    if combined[index].to_int() == 10 {
-      self.line(combined[offset:index].to_owned())
+  // Each input code unit is scanned once. Keep incomplete line fragments in a
+  // builder rather than copying and rescanning the entire pending line per feed.
+  for index in 0..<chunk.length() {
+    if chunk[index].to_int() == 10 {
+      let units = index - offset
+      if units > self.max_line_units - self.pending_units {
+        raise Invalid("JSONL line limit exceeded")
+      }
+      self.pending.write_view(chunk.view(start_offset=offset, end_offset=index))
+      self.pending_units += units
+      self.line(self.pending.to_string())
+      self.pending = StringBuilder()
+      self.pending_units = 0
       offset = index + 1
     }
   }
-  self.pending = combined[offset:].to_owned()
-  if self.pending.length() > self.max_line_units {
+  let units = chunk.length() - offset
+  if units > self.max_line_units - self.pending_units {
     raise Invalid("Unterminated JSONL line limit exceeded")
   }
+  self.pending.write_view(chunk.view(start_offset=offset))
+  self.pending_units += units
 }
 
 ///|
@@ -175,9 +188,10 @@ pub fn BatchDecoder::finish(self : BatchDecoder) -> Batch raise CdcError {
   errdefer {
     self.failed = true
   }
-  if !self.pending.is_empty() {
-    self.line(self.pending)
-    self.pending = ""
+  if self.pending_units > 0 {
+    self.line(self.pending.to_string())
+    self.pending = StringBuilder()
+    self.pending_units = 0
   }
   let start = match self.start {
     Some(cursor) => cursor

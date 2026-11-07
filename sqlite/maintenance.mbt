@@ -114,6 +114,10 @@ pub fn Database::plan_capture(
     "metadata_already_exists": occupied,
     "tables": Json::array(details),
     "capture_mode": "persistent-after-row-triggers",
+    "required_writer_pragmas": {
+      "recursive_triggers": "ON",
+      "trusted_schema": "ON",
+    },
     "modifies_source_schema": true,
   }
 }

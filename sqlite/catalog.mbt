@@ -85,7 +85,7 @@ pub fn Database::source_cursor(self : Database) -> @cdc.Cursor raise {
   let floor = integer(rows[0].values[2])
   let sequence = integer(
     self.scalar(
-      "SELECT coalesce((SELECT seq FROM sqlite_sequence WHERE name='_mooncdc_events'),0)",
+      "SELECT max(coalesce((SELECT seq FROM main.sqlite_sequence WHERE name='_mooncdc_events'),0),coalesce((SELECT max(sequence) FROM main._mooncdc_events),0))",
       [],
     ),
   )
@@ -95,6 +95,29 @@ pub fn Database::source_cursor(self : Database) -> @cdc.Cursor raise {
   let cursor = @cdc.Cursor::{ source: text(rows[0].values[1]), sequence, }
   cursor.validate()
   cursor
+}
+
+///|
+/// SQLITE_FAIL can retain inserted journal rows without finishing the outer
+/// statement's sqlite_sequence update. Seal the observed high-water mark inside
+/// the pruning write transaction, before removing rows that constrain rowid reuse.
+fn Database::seal_journal_sequence(
+  self : Database,
+  high_water : Int64,
+) -> Unit raise {
+  let updated = self.execute(
+    "UPDATE main.sqlite_sequence SET seq=? WHERE name='_mooncdc_events'",
+    [Integer(high_water)],
+  )
+  if updated == 0L {
+    self.execute(
+      "INSERT INTO main.sqlite_sequence(name,seq) VALUES('_mooncdc_events',?)",
+      [Integer(high_water)],
+    )
+    |> ignore
+  } else if updated != 1L {
+    raise StoreError("Duplicate journal sequence metadata")
+  }
 }
 
 ///|

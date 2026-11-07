@@ -14,6 +14,8 @@ MoonCDC 为已有 SQLite 表安装事务内的行级触发器，记录带类型�
 
 **0.3.2** 修复同名 TEMP 表/视图遮蔽导致同步写入错误对象的问题，以及普通表冒充 PRAGMA 查询、绕过递归触发器保护的问题；拒绝非法持久表清单，128 列捕获表达式兼容函数参数上限为 127 的 SQLite 写入端。已有 0.2.0/0.3.0/0.3.1 捕获须在维护窗口运行 `upgrade-capture`，保持源标识、日志和消费者不变。
 
+**0.3.3** 修复 `OR FAIL` 部分成功提交后水位偏低、日志清理后序号可能重用，以及无关 TEMP 自增表干扰水位的问题；改进小块 JSONL 输入的解码性能。此版本保持 0.3.2 触发器格式，完整 0.3.2 捕获无需再次升级。
+
 ## 适用场景
 
 - **业务库 → 报表库**：首次快照初始化，随后仅应用变更。同步中断后根据目标库持久化游标恢复，并补齐遗漏的源端确认。
@@ -69,7 +71,7 @@ moon run cmd/main --target native -- retention source.db
 moon run cmd/main --target native -- prune-bounded source.db --limit 1000
 ```
 
-**每个写入源库的连接必须执行 `PRAGMA recursive_triggers=ON`。** 捕获触发器拒绝不符合条件的写入，防止 `REPLACE` 隐式删除漏记。MoonCDC 自身连接自动设置，外部应用需自行设置。
+**每个写入源库的连接必须启用 `recursive_triggers=ON` 和 `trusted_schema=ON`。** 前者防止 `REPLACE` 隐式删除漏记，MoonCDC 自身连接自动设置；后者是 SQLite 对触发器内表值 PRAGMA 的执行要求，在验证基线中默认开启。外部应用需确认这两项连接设置。`trusted_schema=OFF` 会使写入以 `unsafe use of virtual table` 失败；需要保持该安全策略的应用不适用当前捕获方式。
 
 完整操作和恢复见 [使用手册](docs/OPERATIONS.md)，协议见 [传输格式](docs/WIRE.md)，一致性边界见 [设计契约](docs/DESIGN.md)。
 

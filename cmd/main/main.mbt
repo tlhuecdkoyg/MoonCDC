@@ -109,7 +109,7 @@ async fn execute(options : @cli.Options) -> String {
   }
   match options.command {
     "help" => @cli.help()
-    "version" => "MoonCDC 0.3.2"
+    "version" => "MoonCDC 0.3.3"
     "project-snapshot" | "project-batch" => {
       let plan = plan.unwrap()
       let input = load(options.input.unwrap(), options.max_input)

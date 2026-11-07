@@ -24,6 +24,12 @@ transaction. Retrying the same batch must not apply it twice. A source-side
 acknowledgement is separate and may lag: a crash after target commit is recovered
 by consulting the target cursor, not by repeating side effects unconditionally.
 
+Source high-water marks consider both main.sqlite_sequence and the maximum retained
+event sequence. SQLite FAIL conflicts can commit earlier row changes and trigger
+events without finishing the AUTOINCREMENT bookkeeping for that statement. Before
+pruning, persist the observed high-water mark in main.sqlite_sequence inside the
+same write transaction so deleting the last retained row cannot reuse a sequence.
+
 JSONL export provides at-least-once delivery. External consumers persist their
 effects before acknowledging a cursor. No cross-system exactly-once guarantee.
 

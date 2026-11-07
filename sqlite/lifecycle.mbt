@@ -135,6 +135,7 @@ pub fn Database::prune_bounded(
   if sequences.is_empty() && low > floor {
     raise StoreError("Acknowledged journal tail is missing")
   }
+  self.seal_journal_sequence(source.sequence)
   let deleted = self.execute("DELETE FROM _mooncdc_events WHERE sequence<=?", [
     Integer(next),
   ])

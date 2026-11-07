@@ -220,6 +220,7 @@ pub fn Database::prune(self : Database) -> Int64 raise {
     source,
     self.retention_floor(),
   )
+  self.seal_journal_sequence(source.sequence)
   let deleted = self.execute("DELETE FROM _mooncdc_events WHERE sequence<=?", [
     Integer(low),
   ])

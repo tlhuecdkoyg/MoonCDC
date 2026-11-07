@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.3 — 2026-11-07
+
+- Read source watermarks from both the retained journal and main.sqlite_sequence:
+  SQLite OR FAIL can commit earlier trigger events without completing the statement's
+  AUTOINCREMENT bookkeeping. Seal the observed watermark before either pruning
+  operation so deleting the journal tail cannot reuse an acknowledged sequence.
+- Explicitly qualify main.sqlite_sequence so unrelated TEMP AUTOINCREMENT staging
+  tables cannot reset the reported source watermark through name resolution.
+- Make incremental JSONL decoding scan each chunk once and buffer partial lines,
+  eliminating repeated concatenation and rescanning for small input chunks.
+- Document trusted_schema=ON as a source-writer requirement and include required
+  PRAGMAs in capture plans; untrusted schema mode rejects the capture guard safely.
+- Preserve the 0.3.2 trigger format. An intact 0.3.2 capture needs no additional
+  trigger upgrade for this patch.
+
 ## 0.3.2 — 2026-11-07
 
 - Reject TEMP tables/views that shadow capture/projection objects, preventing

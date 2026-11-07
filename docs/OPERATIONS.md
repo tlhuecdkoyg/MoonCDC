@@ -176,6 +176,23 @@ do not transform twice. Those output files alone do not carry a durable rule loc
 
 ## Recovery
 
+Every source writer connection requires both `PRAGMA recursive_triggers=ON` and
+`PRAGMA trusted_schema=ON`. The latter permits the trigger's table-valued PRAGMA
+guard; with `trusted_schema=OFF`, SQLite rejects the write as an unsafe use of a
+virtual table before changes commit. The `plan` report lists these connection
+requirements. Applications whose security policy requires untrusted schema mode
+cannot use this capture mechanism. This requirement is separate from the 0.3.2
+trigger upgrade.
+
+Version 0.3.3 keeps the 0.3.2 capture definitions. Stop old synchronization/pruning
+workers before switching to 0.3.3 so every pruner seals the corrected high-water
+mark. An intact 0.3.2 capture needs no trigger upgrade. After OR FAIL, SQLite can
+retain a successful prefix even though the statement reported an error; the new
+watermark includes those committed events. Existing consumers can retry from their
+durable target positions. If an earlier snapshot was taken with a falsely low
+watermark, subsequent replay may conflict: audit or reinitialize that target from
+an authoritative snapshot rather than skipping events to bypass the conflict.
+
 | Failure | Action |
 | --- | --- |
 | Exit before target commit | Retry sync; SQLite rolls back the target transaction |
