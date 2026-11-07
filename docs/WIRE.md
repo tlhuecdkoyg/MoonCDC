@@ -79,6 +79,15 @@ high_water), event records (`kind: event`, event object), and mandatory trailer
 bad ordering/images/count and missing commit are errors. BatchDecoder accepts String
 chunks, caps lines and total input, and is unusable after failure or finish.
 
+From 0.3.7 the default decoder allows 16,777,472 UTF-16 code units per line
+and 67,108,864 units across the entire input. The line limit includes a 256-unit
+margin above the source's default 16,777,216-unit event-body budget, covering
+the event record envelope. If only a smaller total budget is supplied, the
+implicit line limit is reduced to that total. Explicit line limits are never
+increased and must be positive and no greater than the total budget. Callers
+using larger source budgets must configure compatible decoder limits. CLI
+`--max-input` independently counts UTF-8 file bytes rather than UTF-16 units.
+
 Split/merge preserve intervals. Adjacent compaction removes intermediate changes
 of the same row; different rows and key changes are ordering barriers. Use it for
 final-state projection, not historical audit.

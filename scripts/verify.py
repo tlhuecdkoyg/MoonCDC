@@ -29,6 +29,8 @@ def main():
     run(sys.executable, "scripts/conflict_regression.py", executable)
     run(sys.executable, "scripts/schema_regression.py", executable)
     run(sys.executable, "scripts/commit_failure_regression.py", executable)
+    run(sys.executable, "scripts/crash_recovery_regression.py", executable)
+    run(sys.executable, "scripts/framing_regression.py", executable)
 
 
 if __name__ == "__main__":

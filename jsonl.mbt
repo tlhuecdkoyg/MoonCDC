@@ -45,9 +45,13 @@ pub struct BatchDecoder {
 ///|
 pub fn BatchDecoder::new(
   max_events~ : Int32 = 100000,
-  max_line_units~ : Int32 = 16777216,
+  max_line_units? : Int32,
   max_total_units~ : Int32 = 67108864,
 ) -> BatchDecoder raise CdcError {
+  // Source batches budget the event body; JSONL adds a record envelope. Clamp
+  // only the implicit limit so older callers specifying a smaller total remain
+  // valid. Explicit per-line limits retain their strict validation and meaning.
+  let max_line_units = max_line_units.unwrap_or(max_total_units.min(16777472))
   if max_events <= 0 || max_line_units <= 0 || max_total_units < max_line_units {
     raise Invalid("Invalid JSONL decoder limits")
   }

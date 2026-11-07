@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.7 — 2026-11-07
+
+- Increase the default JSONL line budget to 16,777,472 UTF-16 code units,
+  allowing the record envelope around an event accepted by the default source
+  budget. The total budget remains 67,108,864 units. Clamp only the implicit
+  line limit to a caller's total budget; explicit limits remain strict.
+- Add native coverage for a near-16-Mi-unit event and compatibility with older
+  total-only decoder settings, plus a real SQLite/CLI large-BLOB round trip
+  through export, apply, acknowledgement, replay and audit.
+- Add process-termination regressions before the target commit and between the
+  target commit and source acknowledgement. Restart must recover all 700 changes
+  with matching durable cursors and data. Both scripts run in the CI gate.
+- Preserve public API signatures, wire formats and capture trigger format.
+
 ## 0.3.6 — 2026-11-07
 
 - Read target before-images through the same strict raw UTF-8 decoder as snapshots
